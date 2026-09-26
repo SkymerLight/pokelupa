@@ -96,7 +96,10 @@ async function iniciar() {
   if (manifesto.homepage_url) $("site").href = manifesto.homepage_url;
 
   checarNovidade(manifesto.version);
-  $("aplicarAtualizacao").addEventListener("click", () => chrome.runtime.reload());
+  $("aplicarAtualizacao").addEventListener("click", () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL("atualizador/atualizar.html?auto=1") });
+    window.close();
+  });
 
   const salvo = await chrome.storage.local.get([chaveResumo, chaveAjustes, chaveShinies]);
   desenhar(salvo[chaveResumo], salvo[chaveShinies]);

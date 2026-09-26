@@ -185,7 +185,8 @@
         <button class="aba" data-aba="pokes">Ranking</button>
         <button class="aba" data-aba="contra">Contra</button>
         <button class="aba" data-aba="sessao">Sessão</button>
-        <button class="aba" data-aba="reservas">Reservas</button>
+        <button class="aba" data-aba="cla">Clã</button>
+        <button class="aba" data-aba="profissao">Profissão</button>
         <button class="aba" data-aba="ajustes">Ajustes</button>
       </div>
       <div class="corpo" data-ref="corpo"></div>
@@ -565,7 +566,7 @@
     faixa.hidden = !tem;
     lancador.classList.toggle("novidade", !!tem);
     if (tem) {
-      faixa.innerHTML = `<b>Versão ${esc(novidade.versao)} disponível</b><span>${esc(novidade.resumo || "Atualize para ganhar as novidades.")}</span><a href="${enderecoSite}#atualizar" target="_blank" rel="noopener">Como atualizar</a>`;
+      faixa.innerHTML = `<b>Versão ${esc(novidade.versao)} disponível</b><span>${esc(novidade.resumo || "Atualize para ganhar as novidades.")}</span><button class="botao pequeno" data-acao="abrirAtualizador">Atualizar agora</button>`;
     }
   }
 
@@ -862,28 +863,30 @@
     const alvoIgual = F.montarCombatente(especieAlvo, 100);
     const fraq = F.fraquezas(especieAlvo.type1, especieAlvo.type2);
     const tiposGolpes = [...new Set(alvoIgual.ataques.map(a => a.type))];
-    const areaAlvo = F.golpesEmArea(especieAlvo.ataques);
 
     const meus = analisesDosPokes().map(x => {
       const especie = x.especie;
       if (!especie || !x.poke.stats || x.poke.isDitto) return null;
       const meu = F.montarCombatente(especie, x.poke.level || 1, x.poke.stats, [x.poke.type1 || especie.type1, x.poke.type2 || especie.type2]);
       return { x, especie, resultado: F.avaliarConfronto(meu, alvoNaHunt) };
-    }).filter(Boolean).sort((a, b) => b.resultado.vantagem - a.resultado.vantagem).slice(0, 8);
+    }).filter(Boolean).sort((a, b) => b.resultado.pontuacao - a.resultado.pontuacao).slice(0, 8);
 
     const agrupados = new Map();
     for (const especie of dados.especies.values()) {
       if (especie.pokeId === especieAlvo.pokeId) continue;
       const resultado = F.avaliarConfronto(F.montarCombatente(especie, 100), alvoIgual);
-      if (resultado.vantagem <= 0) continue;
-      const chave = `${resultado.vantagem.toFixed(4)}|${nomeBase(especie.name)}`;
+      if (resultado.pontuacao <= 0) continue;
+      const chave = `${resultado.pontuacao.toFixed(6)}|${nomeBase(especie.name)}`;
       if (!agrupados.has(chave)) agrupados.set(chave, { especie, resultado, variantes: [] });
       else agrupados.get(chave).variantes.push(especie.name);
     }
-    const especies = [...agrupados.values()].sort((a, b) => b.resultado.vantagem - a.resultado.vantagem).slice(0, 12);
+    const especies = [...agrupados.values()].sort((a, b) => b.resultado.pontuacao - a.resultado.pontuacao).slice(0, 12);
+    const topoMeus = meus.length ? meus[0].resultado.rapidez : 1;
+    const topoEspecies = especies.length ? especies[0].resultado.rapidez : 1;
 
-    const linhaResultado = (nome, especie, shiny, resultado, detalhe) => {
-      const rotulo = F.rotuloVantagem(resultado.vantagem);
+    const linhaResultado = (nome, especie, shiny, resultado, detalhe, topo) => {
+      const rotulo = F.rotuloVantagem(resultado.abates);
+      const rapidez = Math.round(resultado.rapidez / (topo || 1) * 100);
       const golpe = resultado.meuGolpe;
       const perigo = resultado.golpeDele;
       const sprite = F.urlSprite(especie.pokeId, shiny);
@@ -895,7 +898,11 @@
             <span>${golpe ? `usa <b style="color:${Cartao.corTipo(golpe.tipo)}">${esc(golpe.nome)}</b> (${golpe.poder}${golpe.efetividade !== 1 ? ` · ${String(golpe.efetividade).replace(".", ",")}×` : ""})` : "sem golpe que acerte"}${detalhe ? ` · ${detalhe}` : ""}</span>
             ${perigo ? `<span class="perigo">leva <b style="color:${Cartao.corTipo(perigo.tipo)}">${esc(perigo.nome)}</b>${perigo.efetividade !== 1 ? ` (${String(perigo.efetividade).replace(".", ",")}×)` : ""}</span>` : `<span class="perigo">ele não consegue te acertar</span>`}
           </div>
-          <div class="fim"><b style="color:${rotulo.cor}">${rotulo.texto}</b><span class="num">${resultado.vantagem >= 99 ? "imune" : resultado.vantagem < 0.1 ? "<0,1×" : `${resultado.vantagem.toFixed(1).replace(".", ",")}×`}</span></div>
+          <div class="fim" title="Rapidez para derrotar comparada ao 1º da lista · ${resultado.abates === Infinity ? "ele não consegue te ferir" : `aguenta ~${Math.max(0, Math.floor(resultado.abates))} dele antes de cair`}">
+            <b class="num">${rapidez}%</b>
+            <span style="color:${rotulo.cor}">${rotulo.texto}</span>
+          </div>
+          <div class="fatia"><i style="width:${rapidez}%"></i></div>
         </div>`;
     };
 
@@ -909,17 +916,12 @@
           <div class="fraquezas"><em>Ataca com</em>${tiposGolpes.map(t => `<span class="mini-tipo" style="background:${Cartao.corTipo(t)}">${esc(F.nomesTipos[t] || t)}</span>`).join("") || '<span class="fraco">—</span>'}</div>
         </div>
       </div>
+      <div class="nota-lateral">% = rapidez para derrotar (100% = o mais rápido da lista). Etiqueta = quanto aguenta: Seguro, Ok, Arriscado ou Cai antes.</div>
       <div class="secao">Seus melhores contra ele</div>
-      ${meus.length ? `<div class="lista">${meus.map(m => linhaResultado(m.x.analise.nome, m.especie, m.x.poke.shiny, m.resultado, `Nv ${m.x.poke.level}${m.x.poke.team ? " · time" : ""}`)).join("")}</div>` : `<div class="vazio" style="padding:14px">Abra a mochila no jogo para eu conhecer seus Pokémons.</div>`}
+      ${meus.length ? `<div class="lista">${meus.map(m => linhaResultado(m.x.analise.nome, m.especie, m.x.poke.shiny, m.resultado, `Nv ${m.x.poke.level}${m.x.poke.team ? " · time" : ""}`, topoMeus)).join("")}</div>` : `<div class="vazio" style="padding:14px">Abra a mochila no jogo para eu conhecer seus Pokémons.</div>`}
       <div class="secao">Melhores espécies do jogo</div>
       <div class="nota-lateral">Comparando todos no Nv 100, IV médio e qualidade 1,00.</div>
-      <div class="lista">${especies.map(e => linhaResultado(e.especie.name + (e.variantes.length ? ` (+${e.variantes.length})` : ""), e.especie, false, e.resultado, esc(nomesRaridade[e.especie.rarity] || ""))).join("")}</div>
-      <div class="explica" style="margin-top:12px">
-        Como funciona: no idle o Pokémon usa sozinho os golpes que já aprendeu, cada um no seu tempo de recarga. A PokeLupa soma o dano de todos eles
-        (poder × bônus de mesmo tipo 1,5 × efetividade × ataque/defesa) contra ${esc(especieAlvo.name)} e compara com o dano que ele devolve.
-        "3×" quer dizer que você aguenta 3 vezes mais tempo do que ele.
-        ${areaAlvo.length ? ` Golpes em área (como ${esc(areaAlvo[0].name)}, poder ${areaAlvo[0].power}) só saem com 2+ inimigos juntos e ficaram fora da conta.` : ""}
-      </div>
+      <div class="lista">${especies.map(e => linhaResultado(e.especie.name + (e.variantes.length ? ` (+${e.variantes.length})` : ""), e.especie, false, e.resultado, esc(nomesRaridade[e.especie.rarity] || ""), topoEspecies)).join("")}</div>
     `;
   }
 
@@ -954,7 +956,7 @@
             <div class="fim"><b class="num">${l.total ? F.formatarCurto(l.total) : "—"}</b><span>${l.total && confiavel ? F.formatarCurto(l.total / horas) + "/h" : ""}</span></div>
           </div>`).join("") : `<div class="vazio" style="padding:18px">Continue caçando: os itens novos aparecem aqui sempre que o jogo atualizar a mochila.</div>`}
       </div>
-      ${registroShinies.length ? `<div class="secao">Shinies</div><div class="lista">${registroShinies.slice(0, 30).map(s => `
+      ${registroShinies.length ? `<div class="secao">Shinies <button class="chip limpar" data-acao="limparShinies" style="margin-left:auto">✕ Limpar</button></div><div class="lista">${registroShinies.slice(0, 30).map(s => `
         <div class="item-linha">
           <div class="icone" style="color:var(--ouro);font-size:18px">✦</div>
           <div class="meio"><b>${esc(s.nome || "Shiny")}</b><span>${s.nivel ? `Nv ${s.nivel} · ` : ""}${esc(new Date(s.em).toLocaleString("pt-BR"))}</span></div>
@@ -1062,15 +1064,19 @@
     return entrada ? entrada.quantity : 0;
   }
 
-  function montarReservas() {
-    const tarefa = infoCla && infoCla.tarefa;
+  function montarCla() {
+    corpo.innerHTML = `
+      <div class="explica">Os itens da missão do seu próximo rank ficam marcados como <b>não vender</b>: saem do valor da mochila e ganham um aviso na Loja do Mark.</div>
+      <div class="secao">Missões</div>
+      ${htmlSecaoCla()}
+    `;
+  }
+
+  function montarProfissao() {
     const ativas = berriesAtivas();
     const unidades = Math.max(1, Number(reservasUsuario.unidadesCraft) || 1);
     const listaBerries = receitas ? Object.keys(receitas).map(id => ({ id, item: dados.itens.get(Number(id)) })).filter(b => b.item).sort((a, b) => a.item.name.localeCompare(b.item.name)) : [];
     const escolhidasManual = Object.keys(reservasUsuario.berries).some(id => reservasUsuario.berries[id]);
-    const guardados = Object.keys(reservasUsuario.guardar).filter(id => reservasUsuario.guardar[id]);
-    const ignorados = Object.keys(reservasUsuario.ignorar).filter(id => reservasUsuario.ignorar[id]);
-
     const ingredientes = new Map();
     for (const id of ativas) {
       const item = dados.itens.get(Number(id));
@@ -1079,13 +1085,8 @@
       ingredientes.set(erva, (ingredientes.get(erva) || 0) + ervas.porUnidade * unidades);
       for (const ing of receitas[id]) ingredientes.set(ing.id, (ingredientes.get(ing.id) || 0) + ing.qtd * unidades);
     }
-
     corpo.innerHTML = `
-      <div class="explica">Itens daqui ficam marcados como <b>não vender</b>: saem do valor da mochila e ganham um aviso dourado na Loja do Mark (fica vermelho se você marcar para vender).</div>
-
-      <div class="secao">Missões do clã</div>
-      ${htmlSecaoCla()}
-
+      <div class="explica">Os ingredientes das berries que você crafta ficam marcados como <b>não vender</b>: saem do valor da mochila e ganham um aviso na Loja do Mark.</div>
       <div class="secao">Craft de berries</div>
       ${receitas ? `
         <div class="ferramentas" style="margin-top:0">
@@ -1099,20 +1100,9 @@
           return `<button class="chip ${marcada ? "ativo" : ""}" data-berry="${b.id}">${esc(b.item.name)}</button>`;
         }).join("")}</div>
         ${escolhidasManual ? `<button class="botao secundario pequeno" data-acao="berriesAutomaticas">Voltar para automático</button>` : ""}
-        ${ingredientes.size ? `<div class="lista" style="margin-top:8px">${[...ingredientes].sort((a, b) => b[1] - a[1]).map(([id, qtd]) => htmlLinhaReserva(dados.itens.get(id), qtd, "ingrediente de craft", quantidadeNaMochila(id))).join("")}</div>` : ""}
+        <div class="secao">Ingredientes para guardar</div>
+        ${ingredientes.size ? `<div class="lista">${[...ingredientes].sort((a, b) => b[1] - a[1]).map(([id, qtd]) => htmlLinhaReserva(dados.itens.get(id), qtd, "ingrediente de craft", quantidadeNaMochila(id))).join("")}</div>` : `<div class="vazio" style="padding:14px">Nenhuma berry selecionada.</div>`}
       ` : `<div class="vazio" style="padding:16px">Lendo as receitas do jogo… entre no mapa e espere alguns segundos.</div>`}
-
-      <div class="secao">Guardados por você</div>
-      ${guardados.length ? `<div class="lista">${guardados.map(id => {
-        const item = dados.itens.get(Number(id));
-        return item ? `<div class="item-linha com-botoes"><div class="icone"><img src="${esc(urlIconeItem(item))}" alt=""></div><div class="meio"><b>${esc(item.name)}</b><span>nunca vender</span></div><div class="fim"><b class="num">${F.formatarCurto(quantidadeNaMochila(id))}</b><span>na mochila</span></div><div class="botoes-item"><button class="mini ligado" data-guardar="${id}" title="Parar de guardar">🔒</button></div></div>` : "";
-      }).join("")}</div>` : `<div class="vazio" style="padding:14px">Use o 🔒 na aba Mochila para guardar um item.</div>`}
-
-      <div class="secao">Ignorados no valor</div>
-      ${ignorados.length ? `<div class="chips">${ignorados.map(id => {
-        const item = dados.itens.get(Number(id));
-        return item ? `<button class="chip ativo" data-ignorar="${id}" title="Voltar a contar">${esc(item.name)} ✕</button>` : "";
-      }).join("")}</div>` : `<div class="vazio" style="padding:14px">Use o 🚫 na aba Mochila para tirar um item da conta.</div>`}
     `;
   }
 
@@ -1155,7 +1145,7 @@
     atualizarStatus();
     if (!visao.painelAberto) return;
     const rolagem = corpo.scrollTop;
-    ({ mochila: montarMochila, pokes: montarPokes, sessao: montarSessao, reservas: montarReservas, contra: montarContra, ajustes: montarAjustes }[visao.aba])();
+    ({ mochila: montarMochila, pokes: montarPokes, sessao: montarSessao, cla: montarCla, profissao: montarProfissao, contra: montarContra, ajustes: montarAjustes }[visao.aba])();
     if (!forcar) corpo.scrollTop = rolagem;
   }
 
@@ -1386,6 +1376,19 @@
         renderizar(false);
         salvarResumo();
         break;
+      case "abrirAtualizador":
+        try {
+          chrome.runtime.sendMessage({ tipo: "abrirAtualizador" });
+        } catch (erro) {
+          avisar("Recarregue a página", "A extensão foi atualizada por fora; recarregue a aba do jogo.", "info");
+        }
+        break;
+      case "limparShinies":
+        registroShinies = [];
+        gravar(chaves.shinies, registroShinies);
+        renderizar(false);
+        salvarResumo();
+        break;
       case "limparFiltros":
         visao.buscaPokes = "";
         visao.faixasPokes = new Set();
@@ -1555,7 +1558,8 @@
     ajustes = { ...ajustesPadrao, ...(ajustesSalvos || {}) };
     precosMercado = mercadoSalvo || {};
     sessao = sessaoSalva || null;
-    registroShinies = Array.isArray(shiniesSalvos) ? shiniesSalvos : [];
+    registroShinies = (Array.isArray(shiniesSalvos) ? shiniesSalvos : []).filter(s => !/\(teste\)/i.test(s.nome || ""));
+    if (Array.isArray(shiniesSalvos) && shiniesSalvos.length !== registroShinies.length) gravar(chaves.shinies, registroShinies);
     posicionarLancador();
     renderizar(true);
     await carregarCatalogo();

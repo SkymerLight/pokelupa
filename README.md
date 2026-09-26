@@ -28,7 +28,7 @@
 | 🏆 **Ranking** | Seus Pokémons ou os anúncios do mercado, do melhor para o pior (ou o contrário), com busca por nome e filtros de raridade, IV e qualidade. No mercado ainda ordena por custo-benefício. |
 | ⚔️ **Contra** | Digite o Pokémon da hunt ou do boss e veja quais dos seus (e quais espécies do jogo) ganham dele, com o golpe que vão usar e o golpe que vão levar. |
 | ✨ **Alerta de shiny** | Aviso e som quando aparece shiny no seu mapa, com histórico. |
-| 🛡️ **Reservas (não vender)** | Lê a missão do seu próximo rank de clã e as receitas de berries direto do jogo. Esses itens saem do valor da mochila e ganham um aviso na Loja do Mark (vermelho se você marcar para vender). Dá para guardar 🔒 (o jogo não deixa marcar para vender) ou ignorar 🚫 qualquer item. Antes de vender algo reservado, a PokeLupa pede confirmação. |
+| 🛡️ **Abas Clã e Profissão (não vender)** | Lê a missão do seu próximo rank de clã e as receitas de berries direto do jogo. Esses itens saem do valor da mochila e ganham um aviso na Loja do Mark (vermelho se você marcar para vender). Dá para guardar 🔒 (o jogo não deixa marcar para vender) ou ignorar 🚫 qualquer item. Antes de vender algo reservado, a PokeLupa pede confirmação. |
 | 🤝 **Banco de missões de clã** | O jogo só mostra a missão do seu próximo rank. Quem usa a PokeLupa envia a sua com um clique e todo mundo passa a ver os itens de todos os ranks. |
 | 🏷️ **Nota na Loja do Mark** | Na aba Pokémon da loja, cada Pokémon mostra a nota S–D ao lado. |
 
@@ -46,7 +46,7 @@ Funciona em Edge, Chrome, Brave e Opera.
 
 ### Atualizar
 
-A extensão avisa quando sai versão nova (no painel e no ícone). Dê dois cliques em `atualizar.bat`, dentro da pasta da extensão, e depois clique em **Aplicar atualização** no ícone da PokeLupa. A aba do jogo recarrega sozinha. Quem está na 1.0.0 precisa baixar o .zip de novo uma única vez.
+A extensão avisa quando sai versão nova (no painel e no ícone). Clique em **Atualizar agora**: na primeira vez ela pede para você escolher a pasta `pokelupa` e permitir editar; depois disso, cada atualização é um clique. Ela baixa a versão nova, troca os arquivos e recarrega sozinha.
 
 ## Como a nota é calculada
 
@@ -91,8 +91,7 @@ download/          pokelupa.zip pronto para baixar
 O site é estático: na Vercel é só importar o repositório, sem comando de build, com a raiz como pasta de saída. Depois:
 
 1. Troque `homepage_url` em `extensao/manifest.json` pelo endereço novo (a extensão tira de lá o aviso de versão e o banco de missões).
-2. Troque o endereço dentro de `extensao/atualizar.bat`.
-3. Se o repositório ficar privado, o GitHub Pages e o envio de missões por issue param de funcionar para quem não tem acesso ao repositório.
+2. Se o repositório ficar privado, o GitHub Pages e o envio de missões por issue param de funcionar para quem não tem acesso ao repositório.
 
 Para atualizar os dados do site: `node ferramentas/atualizar-dados.mjs`. Para gerar o .zip: `python ferramentas/empacotar.py`.
 

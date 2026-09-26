@@ -487,15 +487,18 @@
     if (tempoParaVencer === Infinity) vantagem = 0;
     else if (tempoParaCair === Infinity) vantagem = 99;
     else vantagem = tempoParaCair / tempoParaVencer;
-    return { vantagem, tempoParaVencer, tempoParaCair, meuGolpe: ataque.melhor, golpeDele: defesa.melhor };
+    const rapidez = tempoParaVencer === Infinity ? 0 : 1 / tempoParaVencer;
+    const pontuacao = rapidez * Math.sqrt(Math.min(1, vantagem / 3));
+    const abates = tempoParaCair === Infinity ? Infinity : vantagem;
+    return { vantagem, abates, rapidez, pontuacao, tempoParaVencer, tempoParaCair, meuGolpe: ataque.melhor, golpeDele: defesa.melhor };
   }
 
-  function rotuloVantagem(vantagem) {
-    if (vantagem >= 4) return { texto: "Amassa", cor: "#ffd166" };
-    if (vantagem >= 2) return { texto: "Muito bom", cor: "#4ade80" };
-    if (vantagem >= 1.2) return { texto: "Bom", cor: "#60a5fa" };
-    if (vantagem >= 0.8) return { texto: "Equilibrado", cor: "#fbbf24" };
-    return { texto: "Evite", cor: "#f87171" };
+  function rotuloVantagem(abates) {
+    if (abates === Infinity) return { texto: "Imune", cor: "#ffd166" };
+    if (abates >= 5) return { texto: "Seguro", cor: "#4ade80" };
+    if (abates >= 2) return { texto: "Ok", cor: "#60a5fa" };
+    if (abates >= 1) return { texto: "Arriscado", cor: "#fbbf24" };
+    return { texto: "Cai antes", cor: "#f87171" };
   }
 
   raiz.PokeLupaFormulas = {

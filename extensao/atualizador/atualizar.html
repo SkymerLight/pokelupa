@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Atualizar PokeLupa</title>
+  <link rel="icon" href="../icones/icone32.png">
+  <link rel="stylesheet" href="atualizar.css">
+</head>
+<body>
+  <main class="caixa">
+    <header>
+      <img src="../icones/icone128.png" alt="">
+      <div>
+        <h1>Poke<span>Lupa</span></h1>
+        <p id="versoes">Verificando versões…</p>
+      </div>
+    </header>
+
+    <section id="novidades" class="novidades" hidden></section>
+
+    <button id="atualizar" class="botao" disabled>Atualizar agora</button>
+
+    <ol class="etapas" id="etapas">
+      <li data-etapa="pasta"><b>Pasta da extensão</b><span id="textoPasta">Na primeira vez, escolha a pasta <code>pokelupa</code> (a que tem o <code>manifest.json</code>) e permita editar.</span></li>
+      <li data-etapa="baixar"><b>Baixar versão nova</b><span>Direto do site da PokeLupa.</span></li>
+      <li data-etapa="gravar"><b>Trocar os arquivos</b><span id="textoGravar">Substitui tudo, até arquivos que tenham sumido.</span></li>
+      <li data-etapa="recarregar"><b>Recarregar</b><span>A extensão reinicia e a aba do jogo recarrega sozinha.</span></li>
+    </ol>
+
+    <p id="mensagem" class="mensagem"></p>
+
+    <details class="ajuda">
+      <summary>Não sei onde está a pasta</summary>
+      <p>Abra <code>edge://extensions</code> (ou <code>chrome://extensions</code>), procure a PokeLupa e veja o caminho em <b>"Carregado de"</b>. É essa pasta que você escolhe aqui. A PokeLupa só consegue mexer nela, em mais nada.</p>
+    </details>
+  </main>
+  <script src="atualizar.js"></script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+:root {
+  --fundo: #070c16;
+  --fundo-2: #0f1828;
+  --borda: rgba(148, 176, 222, 0.14);
+  --borda-forte: rgba(231, 194, 106, 0.4);
+  --texto: #e6edf7;
+  --texto-2: #9fb0c8;
+  --texto-3: #6c7d96;
+  --ouro: #e7c26a;
+  --ouro-2: #f5dc9b;
+  --verde: #4ade80;
+  --vermelho: #f87171;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  font: 14px/1.5 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  color: var(--texto);
+  background:
+    radial-gradient(60% 50% at 80% 0%, rgba(231, 194, 106, 0.12), transparent 60%),
+    radial-gradient(50% 40% at 0% 100%, rgba(90, 169, 255, 0.10), transparent 60%),
+    linear-gradient(180deg, var(--fundo-2), var(--fundo));
+}
+
+.caixa {
+  width: 100%;
+  max-width: 520px;
+  padding: 26px;
+  border-radius: 22px;
+  border: 1px solid var(--borda);
+  background: rgba(15, 24, 40, 0.8);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+}
+
+header { display: flex; gap: 14px; align-items: center; margin-bottom: 18px; }
+header img { width: 56px; height: 56px; }
+h1 { margin: 0; font-size: 24px; }
+h1 span { color: var(--ouro); }
+header p { margin: 2px 0 0; color: var(--texto-2); }
+
+.novidades { padding: 12px 14px; border-radius: 14px; border: 1px solid var(--borda-forte); background: rgba(231, 194, 106, 0.08); color: var(--ouro-2); margin-bottom: 16px; }
+.novidades[hidden] { display: none; }
+
+.botao {
+  width: 100%; height: 50px; border-radius: 14px; border: 0; cursor: pointer;
+  font: inherit; font-weight: 800; font-size: 16px; color: #1b1404;
+  background: linear-gradient(180deg, #ffdd85, #dca63c);
+  box-shadow: 0 10px 30px rgba(231, 194, 106, 0.25);
+}
+.botao:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
+
+.etapas { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 10px; counter-reset: etapa; }
+.etapas li { counter-increment: etapa; display: grid; grid-template-columns: 30px 1fr; column-gap: 12px; opacity: 0.55; transition: opacity .2s; }
+.etapas li::before {
+  content: counter(etapa); grid-row: span 2; width: 28px; height: 28px; border-radius: 9px;
+  display: grid; place-items: center; font-weight: 800; border: 1px solid var(--borda); color: var(--texto-2);
+}
+.etapas li b { font-size: 14px; }
+.etapas li span { font-size: 12.5px; color: var(--texto-3); }
+.etapas li.ativa { opacity: 1; }
+.etapas li.ativa::before { border-color: var(--ouro); color: var(--ouro); animation: pulso 1s ease-in-out infinite; }
+.etapas li.feita { opacity: 1; }
+.etapas li.feita::before { content: "✓"; background: var(--verde); border-color: var(--verde); color: #06210f; }
+@keyframes pulso { 50% { box-shadow: 0 0 0 5px rgba(231, 194, 106, 0.15); } }
+
+code { background: rgba(0, 0, 0, 0.35); border: 1px solid var(--borda); padding: 0 5px; border-radius: 5px; color: var(--ouro-2); font-size: 12px; }
+
+.mensagem { min-height: 22px; margin: 16px 0 0; font-weight: 600; }
+.mensagem.erro { color: var(--vermelho); }
+.mensagem.ok { color: var(--verde); }
+
+.ajuda { margin-top: 14px; color: var(--texto-2); font-size: 13px; }
+.ajuda summary { cursor: pointer; color: var(--texto-3); }
