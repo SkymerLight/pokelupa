@@ -23,7 +23,9 @@ const especies = creatures.map(c => ({
   baseSpAtk: c.baseSpAtk,
   baseSpDef: c.baseSpDef,
   baseSpeed: c.baseSpeed,
-  sellValue: c.sellValue
+  sellValue: c.sellValue,
+  huntLevel: c.huntLevel,
+  ataques: (c.attacks || []).filter(a => a.power > 0).map(a => ({ name: a.name, power: a.power, type: a.type, category: a.category, cooldownMs: a.cooldownMs, learnLevel: a.learnLevel }))
 }));
 
 const itens = items

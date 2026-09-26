@@ -12,6 +12,13 @@
   };
 
   const $ = seletor => document.querySelector(seletor);
+  const tiposEmPortugues = {
+    NORMAL: "NORMAL", FOGO: "FIRE", AGUA: "WATER", ELETRICO: "ELECTRIC", PLANTA: "GRASS", GELO: "ICE",
+    LUTADOR: "FIGHTING", VENENO: "POISON", TERRA: "GROUND", VOADOR: "FLYING", PSIQUICO: "PSYCHIC",
+    INSETO: "BUG", PEDRA: "ROCK", FANTASMA: "GHOST", DRAGAO: "DRAGON", SOMBRIO: "DARK", ACO: "STEEL", FADA: "FAIRY"
+  };
+  let tiposLidos = [];
+  let poderLido = null;
   const especiesPorNome = new Map();
   let especies = [];
   let itens = [];
@@ -64,8 +71,19 @@
     return Number.isFinite(valor) && valor > 0 ? valor : null;
   }
 
+  function ivTotalPelosAtributos(nomeEspecie, nivel, qualidade, stats, ditto, tipos) {
+    let especie = especiesPorNome.get(String(nomeEspecie || "").trim().toLowerCase());
+    if (!especie || !nivel || !qualidade || !F.chavesStats.every(c => stats[c])) return null;
+    if (ditto || especie.pokeId === 132) {
+      especie = F.melhorForma(stats, nivel, qualidade, undefined, especies.filter(e => e.pokeId !== 132), tipos && tipos.length ? tipos : null);
+      if (!especie) return null;
+    }
+    const analise = F.analisarPokemon({ name: especie.name, level: nivel, quality: qualidade, stats }, especie);
+    return analise.ivTotalCalculado ? analise.ivTotal : null;
+  }
+
   function calcular() {
-    const especie = especiesPorNome.get(String(campo("especie").value).trim().toLowerCase());
+    let especie = especiesPorNome.get(String(campo("especie").value).trim().toLowerCase());
     const nivel = numeroDoCampo("nivel");
     const qualidade = numeroDoCampo("qualidade");
     const ivTotal = numeroDoCampo("ivTotal");
@@ -81,10 +99,21 @@
       desenharResultado(`<div class="vazio-site"><b>Falta pouco</b>Preencha ${faltando.join(", ")}.</div>`);
       return;
     }
+    const nomeOriginal = especie.name;
+    const ditto = campo("ditto").checked || especie.pokeId === 132;
+    let tipos = [especie.type1, especie.type2];
+    if (ditto && completos) {
+      const forma = F.melhorForma(stats, nivel, qualidade, ivTotal || undefined, especies.filter(e => e.pokeId !== 132), tiposLidos.length ? tiposLidos : null);
+      if (forma) {
+        especie = forma;
+        tipos = [forma.type1, forma.type2];
+      }
+    }
     const poke = {
-      name: especie.name, speciesId: especie.pokeId, level: nivel, quality: qualidade,
-      stats: completos ? stats : null, ivTotal: ivTotal || undefined, shiny: campo("shiny").checked,
-      type1: especie.type1, type2: especie.type2, sellValue: especie.sellValue
+      name: ditto ? `${campo("shiny").checked ? "Shiny " : ""}Ditto` : nomeOriginal, speciesId: especie.pokeId, level: nivel, quality: qualidade,
+      stats: completos ? stats : null, ivTotal: ivTotal || undefined, shiny: campo("shiny").checked, isDitto: ditto,
+      type1: tipos[0], type2: tipos[1], sellValue: especie.sellValue,
+      power: poderLido || undefined
     };
     desenharResultado(envolver(poke, especie));
   }
@@ -95,6 +124,8 @@
   });
   $("#limparFormulario").addEventListener("click", () => {
     formulario.reset();
+    tiposLidos = [];
+    poderLido = null;
     formulario.querySelectorAll(".lido, .duvida").forEach(e => e.classList.remove("lido", "duvida"));
     calcular();
   });
@@ -137,6 +168,51 @@
     return tela;
   }
 
+  function recortar(imagem, x, y, largura, altura, escala, limite) {
+    const tela = document.createElement("canvas");
+    tela.width = Math.max(1, Math.round(largura * escala));
+    tela.height = Math.max(1, Math.round(altura * escala));
+    const ctx = tela.getContext("2d", { willReadFrequently: true });
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(imagem, x, y, largura, altura, 0, 0, tela.width, tela.height);
+    const pixels = ctx.getImageData(0, 0, tela.width, tela.height);
+    const d = pixels.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const valor = Math.min(d[i], d[i + 1], d[i + 2]) > limite ? 0 : 255;
+      d[i] = d[i + 1] = d[i + 2] = valor;
+    }
+    ctx.putImageData(pixels, 0, 0);
+    return tela;
+  }
+
+  async function relerNumeros(leitor, imagem, palavras, escalaBase) {
+    const achados = {};
+    const alvos = [
+      { nome: "nivel", padrao: /^N[vV]/, largura: 3.2, valido: v => v >= 1 && v <= 999 },
+      { nome: "ivTotal", padrao: /^I[VY1l]/, largura: 4.2, valido: v => v >= 6 && v <= 192 }
+    ];
+    await leitor.setParameters({ tessedit_pageseg_mode: "7", tessedit_char_whitelist: "0123456789/IVNv" });
+    for (const alvo of alvos) {
+      const palavra = palavras.find(p => alvo.padrao.test(p.texto));
+      if (!palavra) continue;
+      const x = palavra.caixa.x0 / escalaBase;
+      const y = palavra.caixa.y0 / escalaBase;
+      const altura = (palavra.caixa.y1 - palavra.caixa.y0) / escalaBase;
+      const votos = new Map();
+      for (const limite of [150, 170, 190]) {
+        for (const escala of [8, 10]) {
+          const { data } = await leitor.recognize(recortar(imagem, Math.max(0, x - 2), Math.max(0, y - altura * 0.35), (palavra.caixa.x1 - palavra.caixa.x0) / escalaBase + altura * alvo.largura, altura * 1.7, escala, limite));
+          const numero = (data.text.replace(/^[^0-9]*/, "").match(/\d{1,3}/) || [])[0];
+          if (numero && alvo.valido(Number(numero))) votos.set(numero, (votos.get(numero) || 0) + 1);
+        }
+      }
+      const melhor = [...votos.entries()].sort((a, b) => b[1] - a[1])[0];
+      if (melhor) achados[alvo.nome] = { valor: melhor[0], certeza: melhor[1] };
+    }
+    await leitor.setParameters({ tessedit_pageseg_mode: "6", tessedit_char_whitelist: "" });
+    return achados;
+  }
+
   const variacoesLeitura = [[3, "brilho"], [3, "cinza"], [2, "brilho"], [4, "brilho"]];
 
   function votar(leituras) {
@@ -176,7 +252,11 @@
     const qualidade = extrairNumero(texto, [/[x×X]\s?(\d[.,]\d{1,3})\b/, /QUALIDADE[^\d]{0,24}(\d[.,]\d{1,3})/i, /\bQ\s*:?\s*(\d[.,]\d{1,3})\b/]);
     if (qualidade) resultado.qualidade = qualidade.replace(".", ",");
 
-    const ivTotal = extrairNumero(texto, [/\bI[VY]\s*(?:TOTAL)?\s*:?\s*(\d{1,3})\s*\/\s*192/i, /\bI[VY]\s*(?:TOTAL)?\s*:?\s*(\d{1,3})\b/i]);
+    const ivTotal = extrairNumero(texto, [
+      /\bI[VY1l|]\s*(?:TOTAL)?\s*:?\s*(\d{1,3})\s*[\/|lI1]\s*192/i,
+      /(\d{2,3})\s*[\/|]\s*1\s?9\s?2\b/,
+      /\bI[VY]\s*(?:TOTAL)?\s*:?\s*(\d{2,3})\b/i
+    ]);
     if (ivTotal && Number(ivTotal) >= 6 && Number(ivTotal) <= 192) resultado.ivTotal = ivTotal;
 
     const padroesStats = {
@@ -203,6 +283,16 @@
     }
     if (melhor) resultado.especie = melhor.name;
     if (/shiny/i.test(texto)) resultado.shiny = true;
+    const poder = texto.match(/Poder\s*:?\s*(\d{1,3}(?:[.,]\d{3})+|\d{1,7})/i);
+    if (poder) resultado.poder = poder[1].replace(/[.,]/g, "");
+    const semAcentos = texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+    const achadosTipos = [];
+    for (const palavra of semAcentos.split(/[^A-Z]+/)) {
+      const tipo = tiposEmPortugues[palavra] || (palavra.length >= 4 ? Object.entries(tiposEmPortugues).find(([nome]) => nome.length >= 4 && nome.slice(0, 4) === palavra.slice(0, 4))?.[1] : null);
+      if (tipo && !achadosTipos.includes(tipo)) achadosTipos.push(tipo);
+      if (achadosTipos.length === 2) break;
+    }
+    if (achadosTipos.length) resultado.tipos = achadosTipos.join(",");
     return resultado;
   }
 
@@ -233,14 +323,28 @@
       const leitor = await Tesseract.createWorker("eng");
       await leitor.setParameters({ tessedit_pageseg_mode: "6" });
       const leituras = [];
+      let palavras = [];
+      let escalaDasPalavras = 1;
       for (let passo = 0; passo < variacoesLeitura.length; passo++) {
         mostrarLeitura(`Lendo o print… ${passo + 1}/${variacoesLeitura.length}`);
         const [escala, modo] = variacoesLeitura[passo];
-        const { data } = await leitor.recognize(prepararImagem(previa, escala, modo));
+        const tela = prepararImagem(previa, escala, modo);
+        const { data } = await leitor.recognize(tela, {}, { text: true, blocks: passo === 0 });
         leituras.push(interpretarTexto(data.text || ""));
+        if (passo === 0 && data.blocks) {
+          escalaDasPalavras = tela.width / previa.naturalWidth;
+          for (const bloco of data.blocks) for (const paragrafo of bloco.paragraphs) for (const linha of paragrafo.lines) for (const palavra of linha.words) palavras.push({ texto: palavra.text, caixa: palavra.bbox });
+        }
       }
+      mostrarLeitura("Conferindo nível e IV…");
+      const relidos = await relerNumeros(leitor, previa, palavras, escalaDasPalavras);
       await leitor.terminate();
       const { final: achados, duvidas } = votar(leituras);
+      for (const nome in relidos) {
+        achados[nome] = relidos[nome].valor;
+        if (relidos[nome].certeza >= 2) duvidas.delete(nome);
+        else duvidas.add(nome);
+      }
       formulario.querySelectorAll(".lido, .duvida").forEach(e => e.classList.remove("lido", "duvida"));
       let preenchidos = 0;
       for (const nome of ["especie", "nivel", "qualidade", "ivTotal", ...F.chavesStats]) {
@@ -250,7 +354,25 @@
         preenchidos++;
       }
       if (achados.shiny) campo("shiny").checked = true;
+      tiposLidos = achados.tipos ? String(achados.tipos).split(",") : [];
+      poderLido = achados.poder ? Number(achados.poder) : null;
+      if (achados.especie && /ditto/i.test(achados.especie)) campo("ditto").checked = true;
+      const statsLidos = {};
+      for (const c of F.chavesStats) statsLidos[c] = numeroDoCampo(c);
+      const calculado = ivTotalPelosAtributos(campo("especie").value, numeroDoCampo("nivel"), numeroDoCampo("qualidade"), statsLidos, campo("ditto").checked, tiposLidos);
+      const lido = numeroDoCampo("ivTotal");
+      if (calculado !== null && (lido === null || Math.abs(lido - calculado) > 10)) {
+        campo("ivTotal").value = calculado;
+        campo("ivTotal").classList.remove("lido");
+        campo("ivTotal").classList.add("duvida");
+        campo("ivTotal").title = "Não consegui ler o IV total no print; este valor foi calculado pelos atributos. Confira.";
+        duvidas.add("ivTotal");
+      }
       calcular();
+      if (duvidas.has("ivTotal") && campo("ditto").checked) {
+        mostrarLeitura("Confira o IV total (aparece no jogo como IV x/192): no Ditto ele decide em quem ele se transformou.", "pronta");
+        return;
+      }
       if (duvidas.size) {
         mostrarLeitura(`Li ${preenchidos} campos. Confira os marcados em amarelo.`, "pronta");
         return;

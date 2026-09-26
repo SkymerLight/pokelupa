@@ -118,6 +118,7 @@ main { max-width: var(--largura); margin: 0 auto; padding: 0 20px; }
 .formulario { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 18px; border-radius: 18px; border: 1px solid var(--borda); background: var(--painel); }
 .formulario label { display: grid; gap: 6px; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--texto-3); }
 .formulario .largo { grid-column: 1 / -1; }
+.formulario .largo2 { grid-column: span 2; }
 .formulario input[type="number"], .formulario input[type="text"], .formulario input:not([type]) {
   height: 42px; border-radius: 12px; border: 1px solid var(--borda); background: rgba(255, 255, 255, .03);
   color: var(--texto); padding: 0 12px; font: inherit; font-size: 15px; text-transform: none; letter-spacing: 0; outline: none; width: 100%;
@@ -200,4 +201,35 @@ main { max-width: var(--largura); margin: 0 auto; padding: 0 20px; }
   .formulario { grid-template-columns: repeat(2, 1fr); }
   .heroi-numeros { gap: 18px; }
   .bloco-titulo h2 { font-size: 26px; }
+}
+
+.explicacoes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.explicacao-card { padding: 22px; border-radius: 18px; border: 1px solid var(--borda); background: var(--painel); }
+.explicacao-card.largo { grid-column: 1 / -1; }
+.explicacao-card h3 { margin: 0 0 10px; font-size: 17px; }
+.explicacao-card p, .explicacao-card li { color: var(--texto-2); font-size: 14px; line-height: 1.6; }
+.explicacao-card p { margin: 0 0 10px; }
+.explicacao-card ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.explicacao-card.seguro { border-color: rgba(74, 222, 128, .3); background: linear-gradient(135deg, rgba(74, 222, 128, .06), transparent 60%), var(--painel); }
+.formula { font-family: Sora, sans-serif; font-size: clamp(15px, 2.2vw, 22px); color: var(--ouro-2); padding: 16px 18px; border-radius: 14px; background: rgba(0, 0, 0, .35); border: 1px solid var(--borda-forte); margin-bottom: 12px; overflow-x: auto; white-space: nowrap; }
+.formula-partes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+.formula-partes span { font-size: 12.5px; color: var(--texto-3); padding: 10px; border-radius: 10px; background: rgba(255, 255, 255, .03); border: 1px solid var(--borda); }
+.formula-partes b { display: block; color: var(--texto); font-size: 14px; margin-bottom: 2px; }
+.chances { display: grid; gap: 5px; margin-bottom: 8px; }
+.chances div { display: grid; grid-template-columns: 82px 1fr 44px; gap: 8px; align-items: center; font-size: 12.5px; color: var(--texto-2); }
+.chances i { height: 8px; border-radius: 99px; background: rgba(255, 255, 255, .06); position: relative; overflow: hidden; }
+.chances i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--p); border-radius: 99px; background: linear-gradient(90deg, #ffdd85, #dca63c); }
+.chances b { text-align: right; font-variant-numeric: tabular-nums; color: var(--texto); }
+.faixas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.faixas span { padding: 8px 10px; border-radius: 10px; font-weight: 700; font-size: 13px; color: var(--c); border: 1px solid color-mix(in srgb, var(--c) 40%, transparent); background: color-mix(in srgb, var(--c) 8%, transparent); }
+.faixas small { display: block; font-weight: 500; font-size: 11px; color: var(--texto-3); }
+.tabela-notas { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tabela-notas td { padding: 7px 8px; border-top: 1px solid var(--borda); color: var(--texto-2); }
+.tabela-notas td:first-child b { font-family: Sora, sans-serif; font-size: 18px; }
+@media (max-width: 920px) {
+  .explicacoes { grid-template-columns: 1fr 1fr; }
+  .formula-partes { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 600px) {
+  .explicacoes { grid-template-columns: 1fr; }
 }

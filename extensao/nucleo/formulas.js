@@ -181,6 +181,99 @@
     };
   }
 
+  function ivsBrutos(stats, bases, nivel, qualidade) {
+    const saida = {};
+    for (const chave of chavesStats) {
+      const fator = nivel / 100 * Math.pow(qualidade, expoentes[chave]);
+      saida[chave] = (stats[chave] / fator - bases[chave]) / 2;
+    }
+    return saida;
+  }
+
+  function estimarIvsAproximado(stats, bases, nivel, qualidade, ivTotalConhecido) {
+    if (!stats || !bases || !nivel || !qualidade) return null;
+    if (!chavesStats.every(c => typeof stats[c] === "number" && typeof bases[c] === "number")) return null;
+    const brutos = ivsBrutos(stats, bases, nivel, qualidade);
+    const foraDoLimite = chavesStats.reduce((soma, c) => soma + Math.max(0, ivMinimo - 2 - brutos[c], brutos[c] - ivMaximo - 2), 0);
+    if (foraDoLimite > 4) return null;
+    const valores = {};
+    for (const c of chavesStats) valores[c] = Math.min(ivMaximo, Math.max(ivMinimo, brutos[c]));
+    const alvo = typeof ivTotalConhecido === "number" && ivTotalConhecido >= 6 ? ivTotalConhecido : null;
+    if (alvo !== null) {
+      for (let volta = 0; volta < 12; volta++) {
+        const soma = chavesStats.reduce((a, c) => a + valores[c], 0);
+        const diferenca = alvo - soma;
+        if (Math.abs(diferenca) < 0.01) break;
+        const ajustaveis = chavesStats.filter(c => diferenca > 0 ? valores[c] < ivMaximo : valores[c] > ivMinimo);
+        if (!ajustaveis.length) break;
+        for (const c of ajustaveis) valores[c] = Math.min(ivMaximo, Math.max(ivMinimo, valores[c] + diferenca / ajustaveis.length));
+      }
+    }
+    const inteiros = {};
+    for (const c of chavesStats) inteiros[c] = Math.round(valores[c]);
+    if (alvo !== null) {
+      let resto = alvo - chavesStats.reduce((a, c) => a + inteiros[c], 0);
+      const ordem = chavesStats.slice().sort((a, b) => (valores[b] - inteiros[b]) - (valores[a] - inteiros[a]));
+      for (let i = 0; resto !== 0 && i < 24; i++) {
+        const c = resto > 0 ? ordem[i % 6] : ordem[5 - (i % 6)];
+        const novo = inteiros[c] + Math.sign(resto);
+        if (novo >= ivMinimo && novo <= ivMaximo) {
+          inteiros[c] = novo;
+          resto -= Math.sign(resto);
+        }
+      }
+    }
+    const faixas = {};
+    for (const c of chavesStats) faixas[c] = { min: inteiros[c], max: inteiros[c] };
+    const total = chavesStats.reduce((a, c) => a + inteiros[c], 0);
+    return { coerente: true, aproximado: true, faixas, totalMin: total, totalMax: total, exatos: 0, desvio: foraDoLimite };
+  }
+
+  function melhorForma(stats, nivel, qualidade, ivTotal, especies, tipos) {
+    const desejados = (tipos || []).filter(Boolean);
+    let melhor = null;
+    for (const especie of especies) {
+      if (desejados.length) {
+        const daEspecie = [especie.type1, especie.type2].filter(Boolean);
+        if (!desejados.every(t => daEspecie.includes(t))) continue;
+      }
+      const bases = basesDaEspecie(especie);
+      const brutos = ivsBrutos(stats, bases, nivel, qualidade);
+      let erro = 0;
+      for (const c of chavesStats) erro += Math.max(0, ivMinimo - brutos[c]) * 3 + Math.max(0, brutos[c] - ivMaximo) * 3;
+      if (typeof ivTotal === "number") erro += Math.abs(chavesStats.reduce((a, c) => a + brutos[c], 0) - ivTotal);
+      if (desejados.length && [especie.type1, especie.type2].filter(Boolean).length !== desejados.length) erro += 1.5;
+      if (!melhor || erro < melhor.erro) melhor = { especie, erro };
+    }
+    return melhor && melhor.erro < 12 ? melhor.especie : null;
+  }
+
+  function perfilDeGolpes(especie, nivel) {
+    const golpes = (especie && especie.ataques || []).filter(a => a && a.power > 0 && a.power < 300 && a.category !== "STATUS" && (a.learnLevel || 1) <= (nivel || 100));
+    let fisico = 0;
+    let especial = 0;
+    for (const golpe of golpes) {
+      if (golpe.category === "SPECIAL") especial += golpe.power;
+      else fisico += golpe.power;
+    }
+    const total = fisico + especial;
+    if (!total) return null;
+    return { fisico: fisico / total, especial: especial / total, golpes: golpes.length };
+  }
+
+  function ivUtil(faixas, perfil) {
+    if (!faixas || !perfil) return null;
+    const pesos = { hp: 1, atk: 2 * perfil.fisico, def: 1, spAtk: 2 * perfil.especial, spDef: 1, speed: 1 };
+    let soma = 0;
+    let maximo = 0;
+    for (const c of chavesStats) {
+      const iv = (faixas[c].min + faixas[c].max) / 2;
+      soma += pesos[c] * (iv - ivMinimo);
+      maximo += pesos[c] * (ivMaximo - ivMinimo);
+    }
+    return maximo ? Math.round(soma / maximo * 100) : null;
+  }
+
   const distribuicaoIv = (function () {
     let atual = [1];
     for (let dado = 0; dado < 6; dado++) {
@@ -252,11 +345,16 @@
     const qualidade = Number(poke.quality) || 0;
     const nivel = Number(poke.level) || 0;
     const bases = basesDaEspecie(especie);
-    const estimativa = poke.stats && bases && !poke.isDitto ? estimarIvs(poke.stats, bases, nivel, qualidade, poke.ivTotal) : null;
+    let estimativa = poke.stats && bases ? estimarIvs(poke.stats, bases, nivel, qualidade, poke.ivTotal) : null;
+    if (poke.stats && bases && (!estimativa || estimativa.coerente === false)) {
+      estimativa = estimarIvsAproximado(poke.stats, bases, nivel, qualidade, poke.ivTotal) || estimativa;
+    }
 
     let ivTotal = typeof poke.ivTotal === "number" ? poke.ivTotal : null;
+    let ivTotalCalculado = false;
     if (ivTotal === null && estimativa && estimativa.coerente) {
       ivTotal = Math.round((estimativa.totalMin + estimativa.totalMax) / 2);
+      ivTotalCalculado = true;
     }
 
     const ivPct = ivTotal !== null ? Math.round((ivTotal - 6) / (ivTotalMaximo - 6) * 1000) / 10 : null;
@@ -295,6 +393,9 @@
 
     return {
       nome: poke.name || (especie && especie.name) || "Pokémon",
+      perfil: perfilDeGolpes(especie, nivel),
+      ivTotalCalculado,
+      ivUtil: estimativa && estimativa.coerente ? ivUtil(estimativa.faixas, perfilDeGolpes(especie, nivel)) : null,
       especie,
       nivel,
       qualidade,
@@ -398,6 +499,10 @@
   }
 
   raiz.PokeLupaFormulas = {
+    estimarIvsAproximado,
+    melhorForma,
+    perfilDeGolpes,
+    ivUtil,
     hpDeCombate,
     golpesEmArea,
     montarCombatente,

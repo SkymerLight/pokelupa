@@ -19,6 +19,9 @@
     const pontos = a.pontos ?? 0;
     const nota = a.nota || { letra: "?", cor: "#94a3b8", rotulo: "Sem dados" };
 
+    const aproximado = !!(a.estimativa && a.estimativa.aproximado);
+    const perfil = a.perfil;
+    const peso = chave => !perfil ? 1 : chave === "atk" ? perfil.fisico * 2 : chave === "spAtk" ? perfil.especial * 2 : 1;
     const barras = F.chavesStats.map(chave => {
       const statAtual = poke.stats && typeof poke.stats[chave] === "number" ? poke.stats[chave] : null;
       const faixa = a.estimativa && a.estimativa.coerente ? a.estimativa.faixas[chave] : null;
@@ -30,19 +33,24 @@
         const larguraIncerta = (faixa.max - faixa.min) / F.ivMaximo * 100;
         trilho = `<i class="cheio" style="width:${larguraCheia}%;background:${cor}"></i>` +
           (larguraIncerta > 0 ? `<i class="incerto" style="left:${larguraCheia}%;width:${larguraIncerta}%;background:${cor}"></i>` : "");
-        texto = faixa.min === faixa.max ? `${faixa.min}` : `${faixa.min}–${faixa.max}`;
+        texto = faixa.min === faixa.max ? `${aproximado ? "≈" : ""}${faixa.min}` : `${faixa.min}–${faixa.max}`;
       }
-      return `<div class="barra"><span class="rotulo">${F.nomesStats[chave]}</span><span class="trilho">${trilho}</span><span class="valor num">${texto}<span class="fraco">/32</span></span><span class="stat num">${statAtual ?? ""}</span></div>`;
+      const importancia = peso(chave);
+      const classe = importancia >= 1.5 ? "chave-ataque" : importancia <= 0.3 ? "pouco-usado" : "";
+      const dica = importancia >= 1.5 ? "Os golpes dele usam este atributo" : importancia <= 0.3 ? "Os golpes dele quase não usam este atributo" : "";
+      return `<div class="barra ${classe}" title="${dica}"><span class="rotulo">${F.nomesStats[chave]}${importancia >= 1.5 ? "★" : ""}</span><span class="trilho">${trilho}</span><span class="valor num">${texto}<span class="fraco">/32</span></span><span class="stat num">${statAtual ?? ""}</span></div>`;
     }).join("");
 
     const coerente = a.estimativa && a.estimativa.coerente;
     const larguraMedia = coerente ? F.chavesStats.reduce((soma, c) => soma + a.estimativa.faixas[c].max - a.estimativa.faixas[c].min, 0) / 6 : 99;
     const statsSimples = poke.stats ? `<div class="stats-simples">${F.chavesStats.map(c => `<div><span>${F.nomesStats[c]}</span><b class="num">${poke.stats[c] ?? "?"}</b></div>`).join("")}</div>` : "";
-    let blocoAtributos = `<div class="barras">${barras}</div>`;
+    const linhaPerfil = perfil ? `<div class="perfil-golpes"><span>Golpes <b>${Math.round(perfil.fisico * 100)}% físicos</b> · ${Math.round(perfil.especial * 100)}% especiais</span>${a.ivUtil !== null ? `<span title="IV ponderado pelo que os golpes dele usam: Atk vale mais se ele bate físico, SpA se bate especial">IV útil <b>${a.ivUtil}%</b></span>` : ""}</div>` : "";
+    const avisoAproximado = aproximado ? `<div class="aviso-barras">≈ Estimativa: ${poke.isDitto && especie ? `Ditto transformado em <b>${esc(especie.name)}</b>. ` : ""}os atributos têm algum bônus ou arredondamento extra, então o IV de cada um pode variar ±1–2. A soma bate com o IV total.</div>` : "";
+    let blocoAtributos = `<div class="barras">${barras}</div>${linhaPerfil}${avisoAproximado}`;
     if (!poke.stats) {
       blocoAtributos = `<div class="aviso-barras">Sem os atributos deste Pokémon aqui. Nota calculada pelo <b>IV total</b> e pela <b>qualidade</b>.</div>`;
     } else if (!coerente) {
-      const motivo = poke.isDitto ? "Ditto transformado copia os atributos de outro Pokémon, então não dá para separar o IV de cada um." : "Os atributos não batem com a espécie base (forma especial ou bônus ativo).";
+      const motivo = poke.isDitto ? "Não consegui descobrir em qual Pokémon este Ditto se transformou, então não dá para separar o IV de cada atributo." : "Os atributos não batem com a espécie base (forma especial ou bônus ativo).";
       blocoAtributos = `${statsSimples}<div class="aviso-barras">${motivo} A nota usa o <b>IV total</b> e a <b>qualidade</b>, que continuam certos.</div>`;
     } else if (larguraMedia > 5) {
       blocoAtributos = `${statsSimples}<div class="aviso-barras">No <b>Nv ${a.nivel}</b> os atributos ainda são pequenos e vários IVs dão o mesmo número. O IV de cada atributo fica confiável a partir do <b>Nv 30</b> e exato perto do <b>Nv 50</b>.</div>`;
@@ -63,13 +71,13 @@
         <div class="retrato">${sprite ? `<img src="${sprite}" alt="" referrerpolicy="no-referrer">` : ""}</div>
         <div class="identidade">
           <div class="nome">${esc(a.nome)}${poke.shiny ? '<span class="estrela">✦</span>' : ""}</div>
-          <div class="sub"><span class="num">Nv ${a.nivel || "?"}</span>${htmlTipos(a.tipos)}</div>
+          <div class="sub"><span class="num">Nv ${a.nivel || "?"}</span>${htmlTipos(a.tipos)}${poke.isDitto && especie && especie.pokeId !== 132 ? `<span class="fraco">virou ${esc(especie.name)}</span>` : ""}</div>
         </div>
         <div class="selo" style="--pct:${pontos};--cor-selo:${nota.cor}" title="${esc(nota.rotulo)}: ${pontos}/100"><b>${nota.letra}</b><small class="num">${a.pontos ?? ""}</small></div>
       </div>
       <div class="metricas">
         <div class="metrica"><span>Qualidade</span><b style="color:${faixa.cor}">${esc(faixa.rotulo)}</b><i class="num">×${a.qualidade ? a.qualidade.toFixed(2) : "?"} · ${a.qualidade > F.tetoSelvagem ? "além do teto" : melhorQue(a.qualidadePercentil)}</i></div>
-        <div class="metrica"><span>IV total</span><b class="num">${a.ivTotal ?? "?"}<span class="fraco">/192</span></b><i>${melhorQue(a.ivPercentil)}</i></div>
+        <div class="metrica"><span>IV total</span><b class="num" title="${a.ivTotalCalculado ? "Calculado a partir dos atributos" : ""}">${a.ivTotalCalculado ? "≈" : ""}${a.ivTotal ?? "?"}<span class="fraco">/192</span></b><i>${melhorQue(a.ivPercentil)}</i></div>
         <div class="metrica"><span>Poder</span><b class="num">${a.poder !== null ? F.formatarCurto(a.poder) : "?"}</b><i>${esc(nota.rotulo)}</i></div>
       </div>
       ${blocoAtributos}

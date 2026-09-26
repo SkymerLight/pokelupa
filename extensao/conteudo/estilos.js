@@ -89,7 +89,7 @@ globalThis.PokeLupaEstilos = `
 .metrica i { display: block; font-style: normal; font-size: 10.5px; color: var(--texto-2); margin-top: 1px; }
 
 .barras { margin-top: 10px; display: grid; gap: 5px; }
-.barra { display: grid; grid-template-columns: 30px 1fr 54px 36px; gap: 6px; align-items: center; font-size: 11.5px; }
+.barra { display: grid; grid-template-columns: 36px 1fr 54px 36px; gap: 6px; align-items: center; font-size: 11.5px; }
 .barra .rotulo { color: var(--texto-2); font-weight: 600; }
 .barra .trilho { height: 7px; border-radius: 99px; background: rgba(255,255,255,0.06); position: relative; overflow: hidden; }
 .barra .cheio { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 99px; }
@@ -352,6 +352,11 @@ select.busca option { background: var(--fundo-2); }
 .contribuir b { color: var(--ouro-2); }
 .contribuir span { color: var(--texto-2); line-height: 1.45; }
 .contribuir .botao { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; justify-self: start; }
+
+.barra.chave-ataque .rotulo { color: var(--ouro-2); }
+.barra.pouco-usado { opacity: .5; }
+.perfil-golpes { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 8px; font-size: 11.5px; color: var(--texto-3); }
+.perfil-golpes b { color: var(--texto); }
 
 @media (max-width: 520px) {
   .painel { width: auto; left: 8px; right: 8px; top: 8px; bottom: 8px; }

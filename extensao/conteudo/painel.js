@@ -20,8 +20,15 @@
     bancoClas: "pokelupa:bancoClas",
     pokesMercado: "pokelupa:pokesMercado"
   };
-  const enderecoBancoClas = "https://skymerlight.github.io/pokelupa/dados/clas.json";
-  const enderecoVersao = "https://skymerlight.github.io/pokelupa/download/versao.json";
+  const enderecoSite = (() => {
+    try {
+      return (chrome.runtime.getManifest().homepage_url || "").replace(/\/?$/, "/");
+    } catch (erro) {
+      return "https://skymerlight.github.io/pokelupa/";
+    }
+  })();
+  const enderecoBancoClas = `${enderecoSite}dados/clas.json`;
+  const enderecoVersao = `${enderecoSite}download/versao.json`;
   const ervas = { comum: 19354, selvagem: 19356, porUnidade: 25 };
   const reservasPadrao = { guardar: {}, ignorar: {}, berries: {}, unidadesCraft: 10, craftAutomatico: true, proximosRanks: false };
   const ajustesPadrao = {
@@ -248,11 +255,25 @@
     }
   }
 
+  const cacheFormas = new Map();
+
   function acharEspecie(poke) {
     if (!poke) return null;
     if (poke.isDitto && poke.formName) {
       const forma = dados.especiesPorNome.get(String(poke.formName).toLowerCase());
       if (forma) return forma;
+    }
+    if (poke.isDitto && poke.stats && poke.level && poke.quality) {
+      if (!cacheFormas.has(poke.id ?? poke.name)) {
+        const candidatas = [...dados.especies.values()].filter(e => e.pokeId !== 132);
+        cacheFormas.set(poke.id ?? poke.name, { chave: JSON.stringify([poke.stats, poke.type1, poke.type2]), forma: F.melhorForma(poke.stats, poke.level, poke.quality, poke.ivTotal, candidatas, [poke.type1, poke.type2]) });
+      }
+      const registro = cacheFormas.get(poke.id ?? poke.name);
+      if (registro.chave !== JSON.stringify([poke.stats, poke.type1, poke.type2])) {
+        cacheFormas.delete(poke.id ?? poke.name);
+        return acharEspecie(poke);
+      }
+      if (registro.forma) return registro.forma;
     }
     if (poke.speciesId > 0 && dados.especies.has(poke.speciesId)) return dados.especies.get(poke.speciesId);
     const nome = String(poke.name || "").replace(/^shiny\s+/i, "").replace(/\s*⚠.*$/, "").trim().toLowerCase();
@@ -544,7 +565,7 @@
     faixa.hidden = !tem;
     lancador.classList.toggle("novidade", !!tem);
     if (tem) {
-      faixa.innerHTML = `<b>Versão ${esc(novidade.versao)} disponível</b><span>${esc(novidade.resumo || "Atualize para ganhar as novidades.")}</span><a href="https://skymerlight.github.io/pokelupa/#atualizar" target="_blank" rel="noopener">Como atualizar</a>`;
+      faixa.innerHTML = `<b>Versão ${esc(novidade.versao)} disponível</b><span>${esc(novidade.resumo || "Atualize para ganhar as novidades.")}</span><a href="${enderecoSite}#atualizar" target="_blank" rel="noopener">Como atualizar</a>`;
     }
   }
 

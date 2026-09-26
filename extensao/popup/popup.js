@@ -16,7 +16,7 @@ function versaoMaior(a, b) {
 async function checarNovidade(versaoAtual) {
   let info = (await chrome.storage.local.get(chaveNovidade))[chaveNovidade];
   try {
-    const remoto = await fetch(`https://skymerlight.github.io/pokelupa/download/versao.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json());
+    const remoto = await fetch(`${chrome.runtime.getManifest().homepage_url.replace(/\/?$/, "/")}download/versao.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json());
     info = { versao: remoto.versao, resumo: remoto.resumo || "", checadoEm: Date.now() };
     await chrome.storage.local.set({ [chaveNovidade]: info });
   } catch (erro) {}

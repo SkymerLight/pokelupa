@@ -24,6 +24,7 @@
       <a href="#analisador">Analisador</a>
       <a href="#extensao">Extensão</a>
       <a href="#loot">Tabela de loot</a>
+      <a href="#como-funciona">Como funciona</a>
       <a href="#duvidas">Dúvidas</a>
       <a class="github" data-link="repositorio" href="#" target="_blank" rel="noopener">GitHub</a>
     </nav>
@@ -88,7 +89,8 @@
             <label>SpA<input type="number" name="spAtk" min="1"></label>
             <label>SpD<input type="number" name="spDef" min="1"></label>
             <label>Vel<input type="number" name="speed" min="1"></label>
-            <label class="caixa largo"><input type="checkbox" name="shiny"> É shiny</label>
+            <label class="caixa"><input type="checkbox" name="shiny"> É shiny</label>
+            <label class="caixa largo2" title="Marque se o Ditto está transformado: a PokeLupa descobre em quem ele virou pelos atributos"><input type="checkbox" name="ditto"> Ditto transformado</label>
             <button type="button" class="botao vidro pequeno largo" id="limparFormulario">Limpar</button>
           </form>
         </div>
@@ -186,9 +188,98 @@
       <div class="tabela" id="tabelaLoot"></div>
     </section>
 
-    <section id="duvidas" class="bloco">
+    <section id="como-funciona" class="bloco">
       <div class="bloco-titulo">
         <span class="numero">04</span>
+        <div>
+          <h2>Como a PokeLupa calcula</h2>
+          <p>Tudo sai das regras que estão no próprio código do jogo. Nada de chute: a mesma conta que o servidor faz, só que ao contrário.</p>
+        </div>
+      </div>
+
+      <div class="explicacoes">
+        <article class="explicacao-card largo">
+          <h3>1. A fórmula de cada atributo</h3>
+          <div class="formula">stat = arredonda( nível/100 × (base + 2·IV) × qualidade<sup>exp</sup> )</div>
+          <div class="formula-partes">
+            <span><b>base</b> atributo da espécie</span>
+            <span><b>IV</b> de 1 a 32 por atributo (6 a 192 no total)</span>
+            <span><b>qualidade</b> multiplicador do exemplar</span>
+            <span><b>exp</b> 0,95 em HP e Velocidade · 0,8 nos outros</span>
+          </div>
+          <p>Como o jogo mostra o stat, o nível e a qualidade, dá para voltar a conta e achar o IV. Do nível ~50 para cima sai exato; em nível baixo vários IVs dão o mesmo número, então aparece a faixa possível. O poder é <b>soma dos stats × qualidade</b>.</p>
+        </article>
+
+        <article class="explicacao-card">
+          <h3>2. Chance de cada qualidade</h3>
+          <p>Captura selvagem, segundo a tabela do jogo:</p>
+          <div class="chances">
+            <div><span>0,80–0,90</span><i style="--p:14.7%"></i><b>5%</b></div>
+            <div><span>0,90–1,00</span><i style="--p:14.7%"></i><b>5%</b></div>
+            <div><span>1,00–1,10</span><i style="--p:100%"></i><b>34%</b></div>
+            <div><span>1,10–1,20</span><i style="--p:58.8%"></i><b>20%</b></div>
+            <div><span>1,20–1,30</span><i style="--p:29.4%"></i><b>10%</b></div>
+            <div><span>1,30–1,40</span><i style="--p:29.4%"></i><b>10%</b></div>
+            <div><span>1,40–1,50</span><i style="--p:29.4%"></i><b>10%</b></div>
+            <div><span>1,50–1,60</span><i style="--p:14.7%"></i><b>5%</b></div>
+            <div><span>1,70–1,80</span><i style="--p:2%"></i><b>0,67%</b></div>
+            <div><span>1,80 cravado</span><i style="--p:1%"></i><b>0,29%</b></div>
+          </div>
+          <p class="miudo">Acima de 1,80 só com breeding, shiny ou evento.</p>
+        </article>
+
+        <article class="explicacao-card">
+          <h3>3. Faixas de qualidade</h3>
+          <div class="faixas">
+            <span style="--c:#9aa6b3">Fraca<small>&lt; 1,00</small></span>
+            <span style="--c:#63d873">Comum<small>1,00+</small></span>
+            <span style="--c:#7fd4ff">Incomum<small>1,10+</small></span>
+            <span style="--c:#b06cff">Rara<small>1,30+</small></span>
+            <span style="--c:#f0c040">Épica<small>1,50+</small></span>
+            <span style="--c:#ff8c3c">Lendária<small>1,70+</small></span>
+            <span style="--c:#b36bff">Mítica<small>2,00+</small></span>
+            <span style="--c:#d4a017">Anciã<small>3,00+</small></span>
+            <span style="--c:#dbefff">Divina<small>4,00+</small></span>
+          </div>
+        </article>
+
+        <article class="explicacao-card">
+          <h3>4. A nota de S a D</h3>
+          <p>Junta a posição do IV total (45%) com a posição da qualidade (55%) entre todas as capturas possíveis. A qualidade pesa mais porque multiplica todos os atributos e ainda o poder.</p>
+          <table class="tabela-notas">
+            <tr><td><b style="color:#ffd166">S</b></td><td>90+</td><td>Excepcional</td></tr>
+            <tr><td><b style="color:#4ade80">A</b></td><td>75+</td><td>Ótimo</td></tr>
+            <tr><td><b style="color:#60a5fa">B</b></td><td>55+</td><td>Bom</td></tr>
+            <tr><td><b style="color:#fbbf24">C</b></td><td>35+</td><td>Mediano</td></tr>
+            <tr><td><b style="color:#f87171">D</b></td><td>&lt; 35</td><td>Fraco</td></tr>
+          </table>
+        </article>
+
+        <article class="explicacao-card">
+          <h3>5. IV útil</h3>
+          <p>No idle o Pokémon usa sozinho os golpes que aprendeu. Se quase todos são físicos, o IV de <b>Atk</b> importa e o de <b>SpA</b> quase não. O IV útil pesa cada atributo pelo que os golpes dele realmente usam; no cartão, o atributo que importa ganha ★ e o que não importa fica apagado.</p>
+        </article>
+
+        <article class="explicacao-card">
+          <h3>6. Counters (aba Contra)</h3>
+          <p>Para cada Pokémon a PokeLupa soma o dano dos golpes aprendidos, cada um no seu tempo de recarga: <b>poder × 1,5 se for do mesmo tipo × efetividade × ataque/defesa</b> (Sp.Atk/Sp.Def nos especiais). Depois compara com o dano que o alvo devolve. Golpes em área de poder 600 só saem com 2+ inimigos e ficam fora do 1 contra 1.</p>
+        </article>
+
+        <article class="explicacao-card largo seguro">
+          <h3>🔒 Segurança</h3>
+          <ul>
+            <li>Só <b>lê</b> o que o jogo já envia para o seu navegador. Não clica, não caça, não vende e não troca nada por você.</li>
+            <li>Não pede senha e não manda dados da sua conta para lugar nenhum. Preferências ficam no próprio navegador.</li>
+            <li>Permissões: armazenamento local e acesso apenas ao site do jogo.</li>
+            <li>O analisador por print roda inteiro no seu computador: a imagem não é enviada.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="duvidas" class="bloco">
+      <div class="bloco-titulo">
+        <span class="numero">05</span>
         <div><h2>Dúvidas</h2></div>
       </div>
       <div class="duvidas">

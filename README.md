@@ -86,6 +86,14 @@ ferramentas/       atualizar-dados.mjs e empacotar.py
 download/          pokelupa.zip pronto para baixar
 ```
 
+### Hospedar o site em outro lugar (ex.: Vercel)
+
+O site é estático: na Vercel é só importar o repositório, sem comando de build, com a raiz como pasta de saída. Depois:
+
+1. Troque `homepage_url` em `extensao/manifest.json` pelo endereço novo (a extensão tira de lá o aviso de versão e o banco de missões).
+2. Troque o endereço dentro de `extensao/atualizar.bat`.
+3. Se o repositório ficar privado, o GitHub Pages e o envio de missões por issue param de funcionar para quem não tem acesso ao repositório.
+
 Para atualizar os dados do site: `node ferramentas/atualizar-dados.mjs`. Para gerar o .zip: `python ferramentas/empacotar.py`.
 
 ---
