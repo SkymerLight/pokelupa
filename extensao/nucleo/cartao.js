@@ -15,7 +15,7 @@
 
   function htmlPoke(poke, especie) {
     const a = F.analisarPokemon(poke, especie);
-    const sprite = F.urlSprite(especie && especie.pokeId, poke.shiny);
+    const sprite = F.urlSprite(especie && (especie.spriteId || especie.pokeId), poke.shiny);
     const pontos = a.pontos ?? 0;
     const nota = a.nota || { letra: "?", cor: "#94a3b8", rotulo: "Sem dados" };
 

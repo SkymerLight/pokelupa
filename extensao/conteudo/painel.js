@@ -84,6 +84,7 @@
     qualMaxPokes: "",
     ordemInvertida: false,
     buscaContra: "",
+    buscaBerry: "",
     claVisto: "",
     ivMinPokes: "",
     ivMaxPokes: "",
@@ -153,6 +154,8 @@
   const svgLogo = `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="plg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff6b6b"/><stop offset="1" stop-color="#c81e3a"/></linearGradient></defs><circle cx="27" cy="27" r="20" fill="#0b1220" stroke="#e7c26a" stroke-width="4"/><path d="M9 27a18 18 0 0 1 36 0z" fill="url(#plg)"/><path d="M9 27h36" stroke="#e7c26a" stroke-width="3"/><circle cx="27" cy="27" r="6" fill="#0b1220" stroke="#e7c26a" stroke-width="3"/><circle cx="27" cy="27" r="2.2" fill="#f5dc9b"/><path d="M41.5 41.5 56 56" stroke="#e7c26a" stroke-width="7" stroke-linecap="round"/></svg>`;
   const svgAtualizar = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>`;
   const svgFechar = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>`;
+  const svgDiscord = `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M20.3 4.4A19.6 19.6 0 0 0 15.4 3l-.2.5a18 18 0 0 1 4.3 1.4 14.5 14.5 0 0 0-15 0A18 18 0 0 1 8.8 3.5L8.6 3a19.6 19.6 0 0 0-4.9 1.4C.6 9.1-.3 13.7.1 18.2A19.8 19.8 0 0 0 6.1 21l1.3-2a12.6 12.6 0 0 1-2-1l.5-.4a14 14 0 0 0 12.2 0l.5.4c-.6.4-1.3.7-2 1l1.3 2a19.7 19.7 0 0 0 6-3c.5-5.2-.9-9.8-3.6-13.6ZM8.3 15.5c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Zm7.4 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Z"/></svg>`;
+  const svgPix = `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M17.6 17.3a2.9 2.9 0 0 1-2.1-.9l-3-3a.6.6 0 0 0-.8 0l-3 3a2.9 2.9 0 0 1-2.1.9H6l3.8 3.8a3 3 0 0 0 4.3 0l3.8-3.8ZM6.6 6.7a2.9 2.9 0 0 1 2.1.9l3 3a.6.6 0 0 0 .8 0l3-3a2.9 2.9 0 0 1 2.1-.9h.3l-3.8-3.8a3 3 0 0 0-4.3 0L6 6.7Zm14.5 3.2-2.3-2.3h-1.2a2 2 0 0 0-1.4.6l-3 3a1.5 1.5 0 0 1-2.1 0l-3-3a2 2 0 0 0-1.4-.6H5.2L2.9 9.9a3 3 0 0 0 0 4.3l2.3 2.3h1.4a2 2 0 0 0 1.4-.6l3-3a1.5 1.5 0 0 1 2.1 0l3 3a2 2 0 0 0 1.4.6h1.2l2.3-2.3a3 3 0 0 0 0-4.3Z"/></svg>`;
   const svgMochila = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 7V5a4 4 0 0 1 8 0v2"/><rect x="4" y="7" width="16" height="14" rx="3"/><path d="M4 13h16M10 13v2h4v-2"/></svg>`;
 
   const hospedeiro = document.createElement("div");
@@ -190,7 +193,7 @@
         <button class="aba" data-aba="ajustes">Ajustes</button>
       </div>
       <div class="corpo" data-ref="corpo"></div>
-      <div class="rodape"><span>Alt+L abre e fecha</span><a href="https://skymerlight.github.io/pokelupa/" target="_blank" rel="noopener" data-ref="linkRepo">PokeLupa</a></div>
+      <div class="rodape"><span class="apoio"><a href="https://pixie.gg/skymerlight" target="_blank" rel="noopener" class="apoio-pix" title="Apoiar com Pix">${svgPix} Apoiar</a><button class="apoio-discord" data-acao="copiarDiscord" title="Copiar meu Discord">${svgDiscord} Skymer#9220</button></span><a href="https://skymerlight.github.io/pokelupa/" target="_blank" rel="noopener" data-ref="linkRepo">PokeLupa</a></div>
     </div>
     <button class="lancador" data-ref="lancador" title="PokeLupa (Alt+L)">${svgLogo}<span class="ponto"></span></button>
   `;
@@ -248,6 +251,7 @@
         lista.sort((a, b) => b.chance - a.chance);
         dados.dropsPorItem.set(chave, lista.slice(0, 4));
       }
+      for (const especie of dados.especies.values()) especie.spriteId = idDoSprite(especie);
       dados.nomesEspecies = [...dados.especies.values()].map(e => e.name).sort((a, b) => a.localeCompare(b));
       dados.pronto = true;
       aoMudarDados("catalogo");
@@ -257,6 +261,16 @@
   }
 
   const cacheFormas = new Map();
+
+  function idDoSprite(especie) {
+    if (especie.pokeId <= 1025) return especie.pokeId;
+    const palavras = especie.name.split(/\s+/);
+    for (let i = 1; i < palavras.length; i++) {
+      const base = dados.especiesPorNome.get(palavras.slice(i).join(" ").toLowerCase());
+      if (base && base.pokeId <= 1025) return base.pokeId;
+    }
+    return null;
+  }
 
   function acharEspecie(poke) {
     if (!poke) return null;
@@ -815,7 +829,7 @@
       const faixa = analise.faixa || { rotulo: "—", cor: "#94a3b8" };
       const chave = `${x.anuncio ? "m" : "p"}${poke.id ?? analise.nome + analise.nivel + posicao}`;
       const aberto = visao.pokeAberto === chave;
-      const sprite = F.urlSprite(especie && especie.pokeId, poke.shiny);
+      const sprite = F.urlSprite(especie && (especie.spriteId || especie.pokeId), poke.shiny);
       const extra = x.anuncio ? (poke.price ? ` · 💲${F.formatarCurto(poke.price)}` : "") : (poke.sellValue ? ` · Mark 💲${F.formatarCurto(poke.sellValue)}` : "");
       return `
         <div class="item-linha poke-linha" data-poke="${esc(chave)}">
@@ -881,15 +895,15 @@
       else agrupados.get(chave).variantes.push(especie.name);
     }
     const especies = [...agrupados.values()].sort((a, b) => b.resultado.pontuacao - a.resultado.pontuacao).slice(0, 12);
-    const topoMeus = meus.length ? meus[0].resultado.rapidez : 1;
-    const topoEspecies = especies.length ? especies[0].resultado.rapidez : 1;
+    const topoMeus = meus.length ? meus[0].resultado.pontuacao : 1;
+    const topoEspecies = especies.length ? especies[0].resultado.pontuacao : 1;
 
     const linhaResultado = (nome, especie, shiny, resultado, detalhe, topo) => {
       const rotulo = F.rotuloVantagem(resultado.abates);
-      const rapidez = Math.round(resultado.rapidez / (topo || 1) * 100);
+      const rapidez = Math.round(resultado.pontuacao / (topo || 1) * 100);
       const golpe = resultado.meuGolpe;
       const perigo = resultado.golpeDele;
-      const sprite = F.urlSprite(especie.pokeId, shiny);
+      const sprite = F.urlSprite(especie.spriteId || especie.pokeId, shiny);
       return `
         <div class="item-linha contra-linha">
           <div class="icone poke">${sprite ? `<img src="${sprite}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}</div>
@@ -898,7 +912,7 @@
             <span>${golpe ? `usa <b style="color:${Cartao.corTipo(golpe.tipo)}">${esc(golpe.nome)}</b> (${golpe.poder}${golpe.efetividade !== 1 ? ` · ${String(golpe.efetividade).replace(".", ",")}×` : ""})` : "sem golpe que acerte"}${detalhe ? ` · ${detalhe}` : ""}</span>
             ${perigo ? `<span class="perigo">leva <b style="color:${Cartao.corTipo(perigo.tipo)}">${esc(perigo.nome)}</b>${perigo.efetividade !== 1 ? ` (${String(perigo.efetividade).replace(".", ",")}×)` : ""}</span>` : `<span class="perigo">ele não consegue te acertar</span>`}
           </div>
-          <div class="fim" title="Rapidez para derrotar comparada ao 1º da lista · ${resultado.abates === Infinity ? "ele não consegue te ferir" : `aguenta ~${Math.max(0, Math.floor(resultado.abates))} dele antes de cair`}">
+          <div class="fim" title="Quão boa é a escolha comparada ao 1º da lista (rapidez para derrotar, com desconto se ele cai antes) · ${resultado.abates === Infinity ? "ele não consegue te ferir" : `aguenta ~${Math.max(0, Math.floor(resultado.abates))} dele antes de cair`}">
             <b class="num">${rapidez}%</b>
             <span style="color:${rotulo.cor}">${rotulo.texto}</span>
           </div>
@@ -908,7 +922,7 @@
 
     return `
       <div class="alvo-contra">
-        <div class="retrato">${F.urlSprite(especieAlvo.pokeId) ? `<img src="${F.urlSprite(especieAlvo.pokeId)}" alt="" referrerpolicy="no-referrer">` : ""}</div>
+        <div class="retrato">${F.urlSprite(especieAlvo.spriteId || especieAlvo.pokeId) ? `<img src="${F.urlSprite(especieAlvo.spriteId || especieAlvo.pokeId)}" alt="" referrerpolicy="no-referrer">` : ""}</div>
         <div>
           <div class="nome">${esc(especieAlvo.name)}</div>
           <div class="sub">${Cartao.htmlTipos([especieAlvo.type1, especieAlvo.type2].filter(Boolean))}${especieAlvo.huntLevel ? `<span>hunt Nv ${especieAlvo.huntLevel}</span>` : ""}</div>
@@ -916,7 +930,7 @@
           <div class="fraquezas"><em>Ataca com</em>${tiposGolpes.map(t => `<span class="mini-tipo" style="background:${Cartao.corTipo(t)}">${esc(F.nomesTipos[t] || t)}</span>`).join("") || '<span class="fraco">—</span>'}</div>
         </div>
       </div>
-      <div class="nota-lateral">% = rapidez para derrotar (100% = o mais rápido da lista). Etiqueta = quanto aguenta: Seguro, Ok, Arriscado ou Cai antes.</div>
+      <div class="nota-lateral">% = quão boa é a escolha (100% = a melhor da lista): conta a rapidez para derrotar e desconta quem cai antes. Etiqueta = quanto aguenta.</div>
       <div class="secao">Seus melhores contra ele</div>
       ${meus.length ? `<div class="lista">${meus.map(m => linhaResultado(m.x.analise.nome, m.especie, m.x.poke.shiny, m.resultado, `Nv ${m.x.poke.level}${m.x.poke.team ? " · time" : ""}`, topoMeus)).join("")}</div>` : `<div class="vazio" style="padding:14px">Abra a mochila no jogo para eu conhecer seus Pokémons.</div>`}
       <div class="secao">Melhores espécies do jogo</div>
@@ -1095,9 +1109,11 @@
           <span class="fraco">unidades de cada berry</span>
         </div>
         <div class="nota-lateral">${escolhidasManual ? "Usando as berries que você marcou abaixo." : craftLiberadas.length ? `Usando as ${craftLiberadas.length} receitas que você já liberou (abra o painel de crafts para atualizar).` : "Marque as berries que você crafta, ou abra o painel de crafts no jogo para detectar as liberadas."}</div>
+        <input class="busca" data-campo="buscaBerry" placeholder="Buscar berry… (ex.: occa)" value="${esc(visao.buscaBerry)}" style="width:100%;margin-bottom:8px">
         <div class="chips berries">${listaBerries.map(b => {
           const marcada = escolhidasManual ? !!reservasUsuario.berries[b.id] : ativas.includes(b.id);
-          return `<button class="chip ${marcada ? "ativo" : ""}" data-berry="${b.id}">${esc(b.item.name)}</button>`;
+          const escondida = visao.buscaBerry && !semAcento(b.item.name).includes(semAcento(visao.buscaBerry));
+          return `<button class="chip ${marcada ? "ativo" : ""}" data-berry="${b.id}" ${escondida ? "hidden" : ""}>${esc(b.item.name)}</button>`;
         }).join("")}</div>
         ${escolhidasManual ? `<button class="botao secundario pequeno" data-acao="berriesAutomaticas">Voltar para automático</button>` : ""}
         <div class="secao">Ingredientes para guardar</div>
@@ -1128,6 +1144,11 @@
         <button class="botao secundario" data-acao="limparMercado">Esquecer preços de mercado</button>
         <button class="botao secundario" data-acao="resetarLancador">Recentralizar botão</button>
         <button class="botao secundario" data-acao="testarShiny">Testar alerta</button>
+      </div>
+      <div class="secao">Apoie o projeto</div>
+      <div class="apoio-grande">
+        <a class="botao pix" href="https://pixie.gg/skymerlight" target="_blank" rel="noopener">${svgPix} Doar com Pix</a>
+        <button class="botao discord" data-acao="copiarDiscord">${svgDiscord} Discord: Skymer#9220</button>
       </div>
       <div class="secao">Como funciona</div>
       <div class="drops" style="font-size:12px;line-height:1.5">
@@ -1383,6 +1404,14 @@
           avisar("Recarregue a página", "A extensão foi atualizada por fora; recarregue a aba do jogo.", "info");
         }
         break;
+      case "copiarDiscord":
+        try {
+          navigator.clipboard.writeText("Skymer#9220");
+          avisar("Discord copiado", "Skymer#9220 — cole na busca de amigos do Discord.", "info");
+        } catch (erro) {
+          avisar("Meu Discord", "Skymer#9220", "info");
+        }
+        break;
       case "limparShinies":
         registroShinies = [];
         gravar(chaves.shinies, registroShinies);
@@ -1417,7 +1446,7 @@
         posicionarLancador();
         break;
       case "testarShiny":
-        if (ajustes.alertaShiny) avisar("Pikachu apareceu! (teste)", "É assim que o alerta aparece. Não conta na sessão.");
+        if (ajustes.alertaShiny) avisar("Pikachu apareceu! (teste)", "É assim que o alerta aparece.");
         if (ajustes.somShiny) tocarSino();
         break;
     }
@@ -1443,6 +1472,10 @@
     } else if (campo.dataset.campo === "ordemPokes") {
       visao.ordemPokes = campo.value;
       desenharListaPokes();
+    } else if (campo.dataset.campo === "buscaBerry") {
+      visao.buscaBerry = campo.value;
+      const termo = semAcento(campo.value);
+      corpo.querySelectorAll("[data-berry]").forEach(botao => { botao.hidden = !!termo && !semAcento(botao.textContent).includes(termo); });
     } else if (campo.dataset.campo === "buscaContra") {
       visao.buscaContra = campo.value;
       const especie = dados.especiesPorNome.get(campo.value.trim().toLowerCase());

@@ -415,6 +415,20 @@
       [data-pokelupa-letra="S"]::after { color: #ffd166; } [data-pokelupa-letra="A"]::after { color: #4ade80; }
       [data-pokelupa-letra="B"]::after { color: #60a5fa; } [data-pokelupa-letra="C"]::after { color: #fbbf24; }
       [data-pokelupa-letra="D"]::after { color: #f87171; }
+      .inv-slot[data-pokelupa-mini] { position: relative; }
+      .inv-slot[data-pokelupa-mini]::before {
+        content: attr(data-pokelupa-mini); position: absolute; left: 2px; top: 2px; z-index: 3; pointer-events: none;
+        font: 800 9px/1 system-ui, sans-serif; padding: 2px 3px; border-radius: 4px; background: #e7c26a; color: #1b1404;
+        box-shadow: 0 1px 3px rgba(0,0,0,.5);
+      }
+      .inv-slot[data-pokelupa-mini-nota]::before {
+        content: attr(data-pokelupa-mini-nota); position: absolute; left: 2px; top: 2px; z-index: 3; pointer-events: none;
+        font: 800 10px/1 system-ui, sans-serif; width: 14px; height: 14px; display: grid; place-items: center; border-radius: 4px;
+        background: rgba(0,0,0,.65); border: 1px solid currentColor;
+      }
+      .inv-slot[data-pokelupa-mini-nota="S"]::before { color: #ffd166; } .inv-slot[data-pokelupa-mini-nota="A"]::before { color: #4ade80; }
+      .inv-slot[data-pokelupa-mini-nota="B"]::before { color: #60a5fa; } .inv-slot[data-pokelupa-mini-nota="C"]::before { color: #fbbf24; }
+      .inv-slot[data-pokelupa-mini-nota="D"]::before { color: #f87171; }
     `;
     (document.head || document.documentElement).appendChild(estilo);
   }
@@ -428,6 +442,16 @@
       const reserva = chave ? marcacoes.reservas[chave[1]] : null;
       if (reserva) linha.setAttribute("data-pokelupa-reserva", reserva);
       else linha.removeAttribute("data-pokelupa-reserva");
+    }
+    for (const celula of document.querySelectorAll(".inv-slot")) {
+      const fibra = acharFibra(celula);
+      const chave = fibra && typeof fibra.key === "string" ? fibra.key.match(/^([ip])-(\d+)$/) : null;
+      const reserva = chave && chave[1] === "i" ? marcacoes.reservas[chave[2]] : null;
+      const nota = chave && chave[1] === "p" ? marcacoes.notas[chave[2]] : null;
+      if (reserva) celula.setAttribute("data-pokelupa-mini", reserva.startsWith("GUARDAR") ? "🔒" : reserva.startsWith("IGNORADO") ? "—" : reserva.split(" ")[0]);
+      else celula.removeAttribute("data-pokelupa-mini");
+      if (nota) celula.setAttribute("data-pokelupa-mini-nota", nota.letra);
+      else celula.removeAttribute("data-pokelupa-mini-nota");
     }
     for (const linha of document.querySelectorAll("label.mks-row")) {
       const fibra = acharFibra(linha);

@@ -63,6 +63,10 @@ header p { margin: 1px 0 0; font-size: 11px; color: var(--texto-3); }
 .ajustes label { display: flex; gap: 8px; align-items: center; color: var(--texto-2); font-size: 12px; cursor: pointer; }
 .ajustes input { accent-color: var(--ouro); }
 
+.apoio { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 12px; }
+.apoio a, .apoio button { display: inline-flex; gap: 6px; align-items: center; justify-content: center; height: 32px; border-radius: 10px; font: inherit; font-size: 12px; font-weight: 700; text-decoration: none; cursor: pointer; border: 0; }
+.apoio .pix { color: #042f2c; background: linear-gradient(180deg, #5eead4, #14b8a6); }
+.apoio .discord { color: #fff; background: linear-gradient(180deg, #7c83f7, #5865f2); }
 footer { margin-top: 12px; display: flex; justify-content: space-between; font-size: 10.5px; color: var(--texto-3); }
 footer a { color: var(--texto-2); text-decoration: none; }
 footer a:hover { color: var(--ouro); }

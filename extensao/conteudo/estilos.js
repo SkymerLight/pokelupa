@@ -358,6 +358,24 @@ select.busca option { background: var(--fundo-2); }
 .perfil-golpes { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 8px; font-size: 11.5px; color: var(--texto-3); }
 .perfil-golpes b { color: var(--texto); }
 
+.rodape { align-items: center; }
+.apoio { display: flex; gap: 6px; align-items: center; }
+.apoio a, .apoio button { display: inline-flex; gap: 4px; align-items: center; height: 22px; padding: 0 8px; border-radius: 7px; font: inherit; font-size: 10.5px; font-weight: 700; text-decoration: none; cursor: pointer; border: 1px solid var(--borda); background: rgba(255,255,255,0.03); color: var(--texto-2); }
+.apoio .apoio-pix { color: #4fd1c5; border-color: rgba(79,209,197,0.35); }
+.apoio .apoio-discord { color: #a5b4fc; border-color: rgba(129,140,248,0.35); }
+.apoio a:hover, .apoio button:hover { filter: brightness(1.25); }
+.apoio-grande { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.apoio-grande .botao { display: inline-flex; gap: 6px; align-items: center; justify-content: center; text-decoration: none; }
+.botao.pix { color: #042f2c; background: linear-gradient(180deg, #5eead4, #14b8a6); border-color: #14b8a6; }
+.botao.discord { color: #fff; background: linear-gradient(180deg, #7c83f7, #5865f2); border-color: #5865f2; }
+.metrica i { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.metrica b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub { flex-wrap: nowrap; overflow: hidden; }
+.sub .tipo { flex: 0 0 auto; font-size: 9.5px; padding: 1px 5px; }
+.item-linha .meio > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.contra-linha .meio > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fraquezas .mini-tipo { white-space: nowrap; }
+
 @media (max-width: 520px) {
   .painel { width: auto; left: 8px; right: 8px; top: 8px; bottom: 8px; }
 }

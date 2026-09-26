@@ -25,6 +25,18 @@
 
   document.querySelectorAll('[data-link="repositorio"]').forEach(a => { a.href = repositorio; });
   document.querySelectorAll('[data-link="download"]').forEach(a => { a.href = linkDownload; });
+  document.querySelectorAll("[data-copiar]").forEach(botao => {
+    botao.addEventListener("click", async () => {
+      const original = botao.innerHTML;
+      try {
+        await navigator.clipboard.writeText(botao.dataset.copiar);
+        botao.textContent = "Copiado! Cole na busca de amigos";
+      } catch (erro) {
+        botao.textContent = botao.dataset.copiar;
+      }
+      setTimeout(() => { botao.innerHTML = original; }, 2200);
+    });
+  });
 
   function criarHospede(elemento) {
     const sombra = elemento.attachShadow({ mode: "open" });
@@ -455,6 +467,14 @@
     especies = listaEspecies;
     itens = listaItens;
     for (const especie of especies) especiesPorNome.set(especie.name.toLowerCase(), especie);
+    for (const especie of especies) {
+      if (especie.pokeId <= 1025) continue;
+      const palavras = especie.name.split(/\s+/);
+      for (let i = 1; i < palavras.length && !especie.spriteId; i++) {
+        const base = especiesPorNome.get(palavras.slice(i).join(" ").toLowerCase());
+        if (base && base.pokeId <= 1025) especie.spriteId = base.pokeId;
+      }
+    }
     $("#listaEspecies").innerHTML = especies.map(e => `<option value="${Cartao.esc(e.name)}">`).join("");
     const categorias = [...new Set(itens.map(i => i.category))];
     $("#categoriaLoot").innerHTML = `<option value="todas">Todas as categorias</option>` +

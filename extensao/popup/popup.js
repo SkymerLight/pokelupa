@@ -96,6 +96,14 @@ async function iniciar() {
   if (manifesto.homepage_url) $("site").href = manifesto.homepage_url;
 
   checarNovidade(manifesto.version);
+  $("copiarDiscord").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText("Skymer#9220");
+      $("copiarDiscord").textContent = "Copiado!";
+    } catch (erro) {
+      $("copiarDiscord").textContent = "Skymer#9220";
+    }
+  });
   $("aplicarAtualizacao").addEventListener("click", () => {
     chrome.tabs.create({ url: chrome.runtime.getURL("atualizador/atualizar.html?auto=1") });
     window.close();
