@@ -89,7 +89,7 @@ globalThis.PokeLupaEstilos = `
 .metrica i { display: block; font-style: normal; font-size: 10.5px; color: var(--texto-2); margin-top: 1px; }
 
 .barras { margin-top: 10px; display: grid; gap: 5px; }
-.barra { display: grid; grid-template-columns: 30px 1fr 44px 36px; gap: 6px; align-items: center; font-size: 11.5px; }
+.barra { display: grid; grid-template-columns: 30px 1fr 54px 36px; gap: 6px; align-items: center; font-size: 11.5px; }
 .barra .rotulo { color: var(--texto-2); font-weight: 600; }
 .barra .trilho { height: 7px; border-radius: 99px; background: rgba(255,255,255,0.06); position: relative; overflow: hidden; }
 .barra .cheio { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 99px; }
@@ -283,6 +283,41 @@ select.busca option { background: var(--fundo-2); }
 .aviso span { display: block; font-size: 12px; color: #d9e2ef; }
 .aviso.info { border-color: var(--borda); background: linear-gradient(135deg, #0f1f35, #0f1828 70%); box-shadow: 0 14px 40px rgba(0,0,0,.5); }
 @keyframes entrar { from { opacity: 0; transform: translateY(-12px) scale(.96); } }
+
+.item-linha.com-botoes { grid-template-columns: 34px 1fr auto auto; }
+.item-linha.apagado { opacity: .45; }
+.botoes-item { display: flex; gap: 3px; opacity: .35; transition: opacity .15s; }
+.item-linha:hover .botoes-item, .botoes-item:has(.ligado) { opacity: 1; }
+.mini { width: 24px; height: 24px; border-radius: 7px; border: 1px solid var(--borda); background: rgba(255,255,255,0.03); cursor: pointer; font-size: 11px; padding: 0; filter: grayscale(1); transition: all .15s; }
+.mini:hover { filter: none; border-color: var(--borda-forte); }
+.mini.ligado { filter: none; border-color: var(--ouro); background: rgba(231,194,106,0.16); }
+.etiqueta.reserva { background: rgba(231,194,106,0.2); color: var(--ouro-2); }
+.quadro.clicavel { cursor: pointer; border-color: var(--borda-forte); background: rgba(231,194,106,0.05); }
+.quadro.clicavel:hover { background: rgba(231,194,106,0.10); }
+.nota-lateral { font-size: 11.5px; color: var(--texto-3); margin: 8px 2px; }
+.legenda { font-size: 11px; color: var(--texto-3); margin: -2px 2px 8px; }
+.explica { font-size: 12px; line-height: 1.5; color: var(--texto-2); padding: 10px 12px; border-radius: 10px; background: rgba(90,169,255,0.06); border: 1px solid rgba(90,169,255,0.18); }
+.explica b { color: var(--ouro-2); }
+.busca.curto { flex: 0 0 76px; width: 76px; }
+.rotulo-campo { font-size: 11px; font-weight: 700; color: var(--texto-3); text-transform: uppercase; letter-spacing: .6px; }
+.chip.faixa { color: var(--cor-faixa); border-color: color-mix(in srgb, var(--cor-faixa) 45%, transparent); }
+.chip.faixa.ativo { background: var(--cor-faixa); color: #0b1020; border-color: var(--cor-faixa); }
+.chips.berries { max-height: 150px; overflow-y: auto; padding: 2px; }
+.botao.pequeno { height: 28px; padding: 0 10px; font-size: 11.5px; margin-bottom: 6px; }
+.faixa-novidade { margin: 0 12px 8px; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--ouro); background: linear-gradient(135deg, rgba(231,194,106,0.20), rgba(231,194,106,0.04)); display: grid; gap: 2px; font-size: 12px; }
+.faixa-novidade[hidden] { display: none; }
+.faixa-novidade b { color: var(--ouro-2); }
+.faixa-novidade span { color: var(--texto-2); }
+.faixa-novidade a { color: var(--ouro); font-weight: 700; text-decoration: none; }
+.lancador.novidade .ponto { opacity: 1; background: var(--ouro); animation: pulsar 1.4s ease-in-out infinite; }
+@keyframes pulsar { 50% { transform: scale(1.35); } }
+.barra .valor { white-space: nowrap; }
+.aviso-barras { margin-top: 10px; font-size: 11.5px; color: var(--texto-2); padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,0.035); border: 1px dashed var(--borda); }
+.aviso-barras b { color: var(--texto); }
+.stats-simples { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-top: 8px; text-align: center; }
+.stats-simples div { background: rgba(255,255,255,0.03); border-radius: 8px; padding: 4px 0; }
+.stats-simples span { display: block; font-size: 9.5px; color: var(--texto-3); font-weight: 700; }
+.stats-simples b { font-size: 12px; }
 
 @media (max-width: 520px) {
   .painel { width: auto; left: 8px; right: 8px; top: 8px; bottom: 8px; }

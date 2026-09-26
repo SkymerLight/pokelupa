@@ -154,13 +154,75 @@
     if (Object.keys(precos).length) enviarParaPainel("mercado", precos);
   }
 
+  function guardarCla(dados) {
+    if (!dados || typeof dados !== "object" || !("clan" in dados || "nextTask" in dados)) return;
+    const tarefa = dados.nextTask || null;
+    enviarParaPainel("cla", {
+      cla: dados.clan || null,
+      rank: dados.clanRank ?? null,
+      tarefa: tarefa ? {
+        rank: tarefa.rank ?? null,
+        nome: tarefa.name || null,
+        itens: (tarefa.items || []).map(i => ({ id: i.itemId, nome: i.name, precisa: Number(i.need) || 0, tem: Number(i.have) || 0 }))
+      } : null
+    });
+  }
+
+  function guardarCraft(dados) {
+    if (!dados || typeof dados !== "object") return;
+    enviarParaPainel("craft", {
+      liberadas: Array.isArray(dados.unlocked) ? dados.unlocked : [],
+      emAndamento: Array.isArray(dados.crafts) ? dados.crafts.map(c => ({ id: c.id, restantes: c.remaining ?? c.left ?? c.qty ?? null })) : []
+    });
+  }
+
+  function acharReceitas(texto) {
+    const padrao = /\{\d+:\[\{itemId:\d+,qty:[\d.e]+\}(?:,\{itemId:\d+,qty:[\d.e]+\})*\](?:,\d+:\[\{itemId:\d+,qty:[\d.e]+\}(?:,\{itemId:\d+,qty:[\d.e]+\})*\])*\}/g;
+    let maior = "";
+    for (const achado of texto.match(padrao) || []) if (achado.length > maior.length) maior = achado;
+    if (!maior) return null;
+    const receitas = {};
+    const entrada = /(\d+):\[((?:\{itemId:\d+,qty:[\d.e]+\},?)+)\]/g;
+    let pedaco;
+    while ((pedaco = entrada.exec(maior))) {
+      receitas[pedaco[1]] = [...pedaco[2].matchAll(/itemId:(\d+),qty:([\d.e]+)/g)].map(m => ({ id: Number(m[1]), qtd: Number(m[2]) }));
+    }
+    return Object.keys(receitas).length >= 5 ? receitas : null;
+  }
+
+  async function lerReceitasDoJogo() {
+    const enderecos = new Set();
+    for (const script of document.querySelectorAll("script[src]")) if (script.src.includes("/_next/static/chunks/")) enderecos.add(script.src);
+    for (const recurso of performance.getEntriesByType("resource")) {
+      if (recurso.name.includes("/_next/static/chunks/") && recurso.name.endsWith(".js")) enderecos.add(recurso.name);
+    }
+    for (const endereco of enderecos) {
+      try {
+        const texto = await fetchOriginal(endereco, { cache: "force-cache" }).then(r => r.text());
+        if (!texto.includes("itemId:") || !texto.includes("qty:")) continue;
+        const receitas = acharReceitas(texto);
+        if (receitas) {
+          enviarParaPainel("receitas", receitas);
+          return;
+        }
+      } catch (erro) {}
+    }
+  }
+
+  if (location.pathname.startsWith("/play")) setTimeout(lerReceitasDoJogo, 6000);
+
   if (typeof fetchOriginal === "function") {
     window.fetch = function (...argumentos) {
       const resposta = fetchOriginal.apply(this, argumentos);
       try {
         const alvo = typeof argumentos[0] === "string" ? argumentos[0] : (argumentos[0] && argumentos[0].url) || "";
+        const metodo = String((argumentos[1] && argumentos[1].method) || "GET").toUpperCase();
         if (alvo.includes("/api/game/market?") && alvo.includes("category=")) {
           resposta.then(r => r.clone().json()).then(guardarPrecosMercado).catch(() => {});
+        } else if (/\/api\/game\/clans(\?|$|\/rankup|\/skip)/.test(alvo)) {
+          resposta.then(r => r.clone().json()).then(guardarCla).catch(() => {});
+        } else if (/\/api\/game\/professions\/craft(\?|$)/.test(alvo) && metodo === "GET") {
+          resposta.then(r => r.clone().json()).then(guardarCraft).catch(() => {});
         }
       } catch (erro) {}
       return resposta;
@@ -275,10 +337,81 @@
     ultimoElemento = null;
   });
 
+  let marcacoes = { reservas: {}, notas: {} };
+  let varreduraPendente = false;
+
+  function colocarEstiloDeMarcas() {
+    if (document.getElementById("pokelupa-marcas")) return;
+    const estilo = document.createElement("style");
+    estilo.id = "pokelupa-marcas";
+    estilo.textContent = `
+      [data-pokelupa-reserva] { position: relative; box-shadow: inset 3px 0 0 #e7c26a; }
+      [data-pokelupa-reserva]::after {
+        content: attr(data-pokelupa-reserva); position: absolute; right: 8px; top: 4px; pointer-events: none;
+        font: 700 10px/1.4 system-ui, sans-serif; letter-spacing: .3px; color: #1b1404; background: #e7c26a;
+        padding: 1px 6px; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,.4); z-index: 2;
+      }
+      .on[data-pokelupa-reserva], [data-pokelupa-reserva]:has(input:checked) { box-shadow: inset 3px 0 0 #f87171, 0 0 0 1px #f87171; }
+      .on[data-pokelupa-reserva]::after, [data-pokelupa-reserva]:has(input:checked)::after { background: #f87171; color: #fff; content: "⚠ " attr(data-pokelupa-reserva); }
+      [data-pokelupa-nota] { position: relative; }
+      [data-pokelupa-nota]::after {
+        content: attr(data-pokelupa-nota); position: absolute; right: 44px; top: 50%; transform: translateY(-50%); pointer-events: none;
+        font: 800 12px/1 system-ui, sans-serif; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px;
+        border: 1px solid currentColor; background: rgba(0,0,0,.35); z-index: 2;
+      }
+      [data-pokelupa-letra="S"]::after { color: #ffd166; } [data-pokelupa-letra="A"]::after { color: #4ade80; }
+      [data-pokelupa-letra="B"]::after { color: #60a5fa; } [data-pokelupa-letra="C"]::after { color: #fbbf24; }
+      [data-pokelupa-letra="D"]::after { color: #f87171; }
+    `;
+    (document.head || document.documentElement).appendChild(estilo);
+  }
+
+  function marcarLinhas() {
+    varreduraPendente = false;
+    colocarEstiloDeMarcas();
+    for (const linha of document.querySelectorAll(".mks-srow")) {
+      const fibra = acharFibra(linha);
+      const chave = fibra && typeof fibra.key === "string" ? fibra.key.match(/^s-(\d+)$/) : null;
+      const reserva = chave ? marcacoes.reservas[chave[1]] : null;
+      if (reserva) linha.setAttribute("data-pokelupa-reserva", reserva);
+      else linha.removeAttribute("data-pokelupa-reserva");
+    }
+    for (const linha of document.querySelectorAll("label.mks-row")) {
+      const fibra = acharFibra(linha);
+      const nota = fibra && fibra.key != null ? marcacoes.notas[String(fibra.key)] : null;
+      if (nota) {
+        linha.setAttribute("data-pokelupa-nota", nota.letra);
+        linha.setAttribute("data-pokelupa-letra", nota.letra);
+        linha.title = `PokeLupa: nota ${nota.letra} (${nota.pontos}/100)`;
+      } else {
+        linha.removeAttribute("data-pokelupa-nota");
+        linha.removeAttribute("data-pokelupa-letra");
+      }
+    }
+  }
+
+  function agendarMarcacao() {
+    if (varreduraPendente) return;
+    varreduraPendente = true;
+    setTimeout(marcarLinhas, 120);
+  }
+
+  new MutationObserver(mudancas => {
+    for (const mudanca of mudancas) {
+      if (mudanca.addedNodes.length || mudanca.type === "attributes") {
+        agendarMarcacao();
+        return;
+      }
+    }
+  }).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+
   window.addEventListener("message", evento => {
     if (evento.source !== window || !evento.data || evento.data.marca !== marcaPedido) return;
     const pedido = evento.data;
-    if (pedido.tipo === "pedirEstado") {
+    if (pedido.tipo === "marcacoes") {
+      marcacoes = { reservas: pedido.dados?.reservas || {}, notas: pedido.dados?.notas || {} };
+      agendarMarcacao();
+    } else if (pedido.tipo === "pedirEstado") {
       enviarParaPainel("estado", { ...estado, motivo: "pedido" });
     } else if (pedido.tipo === "atualizar") {
       if (socketDoJogo && socketDoJogo.readyState === SocketOriginal.OPEN) {

@@ -35,6 +35,19 @@
       return `<div class="barra"><span class="rotulo">${F.nomesStats[chave]}</span><span class="trilho">${trilho}</span><span class="valor num">${texto}<span class="fraco">/32</span></span><span class="stat num">${statAtual ?? ""}</span></div>`;
     }).join("");
 
+    const coerente = a.estimativa && a.estimativa.coerente;
+    const larguraMedia = coerente ? F.chavesStats.reduce((soma, c) => soma + a.estimativa.faixas[c].max - a.estimativa.faixas[c].min, 0) / 6 : 99;
+    const statsSimples = poke.stats ? `<div class="stats-simples">${F.chavesStats.map(c => `<div><span>${F.nomesStats[c]}</span><b class="num">${poke.stats[c] ?? "?"}</b></div>`).join("")}</div>` : "";
+    let blocoAtributos = `<div class="barras">${barras}</div>`;
+    if (!poke.stats) {
+      blocoAtributos = `<div class="aviso-barras">Sem os atributos deste Pokémon aqui. Nota calculada pelo <b>IV total</b> e pela <b>qualidade</b>.</div>`;
+    } else if (!coerente) {
+      const motivo = poke.isDitto ? "Ditto transformado copia os atributos de outro Pokémon, então não dá para separar o IV de cada um." : "Os atributos não batem com a espécie base (forma especial ou bônus ativo).";
+      blocoAtributos = `${statsSimples}<div class="aviso-barras">${motivo} A nota usa o <b>IV total</b> e a <b>qualidade</b>, que continuam certos.</div>`;
+    } else if (larguraMedia > 5) {
+      blocoAtributos = `${statsSimples}<div class="aviso-barras">No <b>Nv ${a.nivel}</b> os atributos ainda são pequenos e vários IVs dão o mesmo número. O IV de cada atributo fica confiável a partir do <b>Nv 30</b> e exato perto do <b>Nv 50</b>. O IV total (${a.ivTotal ?? "?"}) e a nota já estão certos.</div>`;
+    }
+
     const fraq = F.fraquezas(a.tipos[0], a.tipos[1]);
     const chipsFraqueza = [
       ...fraq.x4.map(t => `<span class="mini-tipo x4" style="background:${corTipo(t)}" title="4x">${esc(F.nomesTipos[t])} 4×</span>`),
@@ -59,7 +72,7 @@
         <div class="metrica"><span>IV total</span><b class="num">${a.ivTotal ?? "?"}<span class="fraco">/192</span></b><i>${melhorQue(a.ivPercentil)}</i></div>
         <div class="metrica"><span>Poder</span><b class="num">${a.poder !== null ? F.formatarCurto(a.poder) : "?"}</b><i>${esc(nota.rotulo)}</i></div>
       </div>
-      <div class="barras">${barras}</div>
+      ${blocoAtributos}
       ${chipsFraqueza || chipsImune ? `<div class="fraquezas">${chipsFraqueza ? `<em>Fraco a</em>${chipsFraqueza}` : ""}${chipsImune ? `<em style="margin-left:6px">Imune</em>${chipsImune}` : ""}</div>` : ""}
       ${a.dicas.length ? `<div class="dicas">${a.dicas.slice(0, 3).map(d => `<div class="dica ${d.tom}">${esc(d.texto)}</div>`).join("")}</div>` : ""}
     `;

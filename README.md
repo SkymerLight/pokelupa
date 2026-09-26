@@ -27,7 +27,8 @@
 | ⏱️ **Loot por hora** | Conta o que entrou na mochila durante a sessão e calcula quanto isso rende por hora. Vender itens não atrapalha a conta. |
 | 🏆 **Ranking de Pokémons** | Todos os seus Pokémons ordenados por nota, poder, IV, qualidade ou nível, com filtro "Pra vender". |
 | ✨ **Alerta de shiny** | Aviso e som quando aparece shiny no seu mapa, com histórico. |
-| 🧮 **Analisador manual** | Aba para calcular qualquer Pokémon digitando os atributos. |
+| 🛡️ **Reservas (não vender)** | Lê a missão do seu próximo rank de clã e as receitas de berries direto do jogo. Esses itens saem do valor da mochila e ganham um aviso na Loja do Mark (vermelho se você marcar para vender). Dá para guardar 🔒 ou ignorar 🚫 qualquer item. |
+| 🏷️ **Nota na Loja do Mark** | Na aba Pokémon da loja, cada Pokémon mostra a nota S–D ao lado. |
 
 Atalho: **Alt+L** abre e fecha o painel dentro do jogo.
 
@@ -39,7 +40,11 @@ Atalho: **Alt+L** abre e fecha o painel dentro do jogo.
 4. Clique em **Carregar sem compactação** e escolha a pasta `pokelupa`.
 5. Abra o jogo. O botão da lupa aparece no canto direito.
 
-Funciona em Edge, Chrome, Brave e Opera. Para atualizar, substitua a pasta pelos arquivos novos e clique em *Recarregar* na página de extensões.
+Funciona em Edge, Chrome, Brave e Opera.
+
+### Atualizar
+
+A extensão avisa quando sai versão nova (no painel e no ícone). Dê dois cliques em `atualizar.bat`, dentro da pasta da extensão, e depois clique em **Aplicar atualização** no ícone da PokeLupa. A aba do jogo recarrega sozinha. Quem está na 1.0.0 precisa baixar o .zip de novo uma única vez.
 
 ## Como a nota é calculada
 

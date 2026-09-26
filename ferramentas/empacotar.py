@@ -1,4 +1,5 @@
 import json
+import sys
 import zipfile
 from pathlib import Path
 
@@ -13,5 +14,6 @@ with zipfile.ZipFile(destino, "w", zipfile.ZIP_DEFLATED) as pacote:
         if arquivo.is_file() and arquivo.name != "icone256.png":
             pacote.write(arquivo, Path("pokelupa") / arquivo.relative_to(pastaExtensao))
 
-(raiz / "download" / "versao.json").write_text(json.dumps({"versao": versao}), encoding="utf-8")
+resumo = " ".join(sys.argv[1:]).strip()
+(raiz / "download" / "versao.json").write_text(json.dumps({"versao": versao, "resumo": resumo}, ensure_ascii=False), encoding="utf-8")
 print(f"pokelupa.zip v{versao} gerado ({destino.stat().st_size // 1024} KB)")

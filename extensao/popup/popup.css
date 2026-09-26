@@ -66,3 +66,9 @@ header p { margin: 1px 0 0; font-size: 11px; color: var(--texto-3); }
 footer { margin-top: 12px; display: flex; justify-content: space-between; font-size: 10.5px; color: var(--texto-3); }
 footer a { color: var(--texto-2); text-decoration: none; }
 footer a:hover { color: var(--ouro); }
+
+.novidade { display: grid; gap: 6px; margin-bottom: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--ouro); background: linear-gradient(135deg, rgba(231, 194, 106, 0.22), rgba(231, 194, 106, 0.04)); }
+.novidade[hidden] { display: none; }
+.novidade b { color: var(--ouro-2); }
+.novidade span { font-size: 11.5px; color: var(--texto-2); line-height: 1.5; }
+.novidade code { color: var(--ouro-2); }

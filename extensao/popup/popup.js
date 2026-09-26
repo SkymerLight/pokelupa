@@ -2,6 +2,29 @@ const enderecoJogo = "https://poke.idleworld.online/play";
 const chaveResumo = "pokelupa:resumo";
 const chaveAjustes = "pokelupa:ajustes";
 const chaveShinies = "pokelupa:shinies";
+const chaveNovidade = "pokelupa:novidade";
+
+function versaoMaior(a, b) {
+  const pa = String(a).split(".").map(Number);
+  const pb = String(b).split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0);
+  }
+  return false;
+}
+
+async function checarNovidade(versaoAtual) {
+  let info = (await chrome.storage.local.get(chaveNovidade))[chaveNovidade];
+  try {
+    const remoto = await fetch(`https://skymerlight.github.io/pokelupa/download/versao.json?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json());
+    info = { versao: remoto.versao, resumo: remoto.resumo || "", checadoEm: Date.now() };
+    await chrome.storage.local.set({ [chaveNovidade]: info });
+  } catch (erro) {}
+  if (info && versaoMaior(info.versao, versaoAtual)) {
+    $("novidade").hidden = false;
+    $("novidadeTitulo").textContent = `Versão ${info.versao} disponível${info.resumo ? ": " + info.resumo : ""}`;
+  }
+}
 
 const $ = id => document.getElementById(id);
 
@@ -71,6 +94,9 @@ async function iniciar() {
   const manifesto = chrome.runtime.getManifest();
   $("versao").textContent = `v${manifesto.version}`;
   if (manifesto.homepage_url) $("site").href = manifesto.homepage_url;
+
+  checarNovidade(manifesto.version);
+  $("aplicarAtualizacao").addEventListener("click", () => chrome.runtime.reload());
 
   const salvo = await chrome.storage.local.get([chaveResumo, chaveAjustes, chaveShinies]);
   desenhar(salvo[chaveResumo], salvo[chaveShinies]);

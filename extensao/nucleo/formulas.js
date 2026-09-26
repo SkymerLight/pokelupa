@@ -292,8 +292,6 @@
       const venda = poke.sellValue || (especie && especie.sellValue) || 0;
       dicas.push({ tom: "ruim", texto: venda ? `Candidato a venda: rende ${formatarNumero(venda)} no Mark.` : "Candidato a venda ou troca." });
     }
-    if (nivel && nivel < 15 && estimativa && estimativa.coerente && estimativa.exatos < 6) dicas.push({ tom: "info", texto: "Nível baixo: os IVs por atributo ficam aproximados. Suba de nível para mais precisão." });
-    if (estimativa && estimativa.coerente === false) dicas.push({ tom: "info", texto: "Stats não batem com a espécie base (forma alternativa ou Ditto). Usando só o IV total." });
 
     return {
       nome: poke.name || (especie && especie.name) || "Pokémon",

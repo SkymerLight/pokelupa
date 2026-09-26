@@ -11,8 +11,16 @@
     mercado: "pokelupa:mercado",
     sessao: "pokelupa:sessao",
     resumo: "pokelupa:resumo",
-    shinies: "pokelupa:shinies"
+    shinies: "pokelupa:shinies",
+    reservas: "pokelupa:reservas",
+    cla: "pokelupa:cla",
+    receitas: "pokelupa:receitas",
+    craft: "pokelupa:craft",
+    novidade: "pokelupa:novidade"
   };
+  const enderecoVersao = "https://skymerlight.github.io/pokelupa/download/versao.json";
+  const ervas = { comum: 19354, selvagem: 19356, porUnidade: 25 };
+  const reservasPadrao = { guardar: {}, ignorar: {}, berries: {}, unidadesCraft: 10, craftAutomatico: true };
   const ajustesPadrao = {
     cartaoAtivo: true,
     alertaShiny: true,
@@ -33,6 +41,11 @@
   let registroShinies = [];
   let estadoJogo = { pokes: null, inventario: null, bolas: null, atualizadoEm: 0 };
   let ultimoContato = 0;
+  let reservasUsuario = { ...reservasPadrao };
+  let infoCla = null;
+  let receitas = null;
+  let craftLiberadas = [];
+  let novidade = null;
 
   const dados = {
     itens: new Map(),
@@ -52,6 +65,9 @@
     buscaPokes: "",
     filtroPokes: "todos",
     ordemPokes: "nota",
+    faixasPokes: new Set(),
+    ivMinPokes: "",
+    ivMaxPokes: "",
     pokeAberto: null,
     atualizando: false
   };
@@ -144,11 +160,12 @@
           <button class="botao-icone" data-acao="fechar" title="Fechar (Alt+L)">${svgFechar}</button>
         </div>
       </div>
+      <div class="faixa-novidade" data-ref="novidade" hidden></div>
       <div class="abas" data-ref="abas">
         <button class="aba" data-aba="mochila">Mochila</button>
         <button class="aba" data-aba="pokes">Pokémons</button>
         <button class="aba" data-aba="sessao">Sessão</button>
-        <button class="aba" data-aba="analisar">Analisar</button>
+        <button class="aba" data-aba="reservas">Reservas</button>
         <button class="aba" data-aba="ajustes">Ajustes</button>
       </div>
       <div class="corpo" data-ref="corpo"></div>
@@ -242,6 +259,56 @@
     return registro ? registro.preco : null;
   }
 
+  function berriesAtivas() {
+    if (!receitas) return [];
+    const escolhidas = Object.keys(reservasUsuario.berries).filter(id => reservasUsuario.berries[id] && receitas[id]);
+    if (escolhidas.length) return escolhidas;
+    if (reservasUsuario.craftAutomatico) return craftLiberadas.map(String).filter(id => receitas[id]);
+    return [];
+  }
+
+  function calcularReservas() {
+    const mapa = new Map();
+    const somar = (id, qtd, motivo) => {
+      const chave = Number(id);
+      if (!mapa.has(chave)) mapa.set(chave, { qtd: 0, motivos: new Set() });
+      const registro = mapa.get(chave);
+      registro.qtd += qtd;
+      registro.motivos.add(motivo);
+    };
+    if (infoCla && infoCla.tarefa) {
+      for (const item of infoCla.tarefa.itens) if (item.precisa > 0) somar(item.id, item.precisa, "clã");
+    }
+    const unidades = Math.max(1, Number(reservasUsuario.unidadesCraft) || 1);
+    for (const id of berriesAtivas()) {
+      const item = dados.itens.get(Number(id));
+      const selvagem = item ? /^wild\s/i.test(item.name) : false;
+      somar(selvagem ? ervas.selvagem : ervas.comum, ervas.porUnidade * unidades, "craft");
+      for (const ingrediente of receitas[id]) somar(ingrediente.id, ingrediente.qtd * unidades, "craft");
+    }
+    for (const id in reservasUsuario.guardar) if (reservasUsuario.guardar[id]) somar(id, Infinity, "guardar");
+    return mapa;
+  }
+
+  function rotuloReserva(registro) {
+    if (registro.motivos.has("guardar")) return "GUARDAR";
+    const partes = [];
+    if (registro.motivos.has("clã")) partes.push("CLÃ");
+    if (registro.motivos.has("craft")) partes.push("CRAFT");
+    return `${partes.join("+")} ${F.formatarCurto(registro.qtd)}`;
+  }
+
+  function enviarMarcacoes() {
+    const reservas = {};
+    for (const [id, registro] of calcularReservas()) reservas[id] = rotuloReserva(registro);
+    for (const id in reservasUsuario.ignorar) if (reservasUsuario.ignorar[id] && !reservas[id]) reservas[id] = "IGNORADO";
+    const notas = {};
+    for (const x of analisesDosPokes()) {
+      if (x.poke.id != null && x.analise.nota) notas[x.poke.id] = { letra: x.analise.nota.letra, pontos: x.analise.pontos };
+    }
+    window.postMessage({ marca: marcaPainel, tipo: "marcacoes", dados: { reservas, notas } }, location.origin);
+  }
+
   function htmlCartaoItem(alvo) {
     const item = dados.itens.get(alvo.id) || (alvo.nome ? dados.itensPorNome.get(String(alvo.nome).toLowerCase()) : null);
     if (!item) return "";
@@ -254,6 +321,11 @@
     const nomeDestino = destino === "mark" ? "Mark" : destino === "flint" ? "Flint" : "NPC";
 
     let linhas = `<div class="linha"><span>Quantidade</span><b class="num">${F.formatarNumero(quantidade)}</b></div>`;
+    const reserva = calcularReservas().get(item.id);
+    if (reserva) {
+      const motivos = [...reserva.motivos].map(m => m === "clã" ? "missão do clã" : m === "craft" ? "craft de berries" : "você marcou para guardar").join(" + ");
+      linhas += `<div class="linha"><span>Não venda: ${esc(motivos)}</span><b class="num ouro">${reserva.qtd === Infinity ? "tudo" : F.formatarNumero(reserva.qtd)}</b></div>`;
+    }
     if (destino !== "nenhum") {
       linhas += `<div class="linha"><span>Preço no ${nomeDestino}</span><b class="num">${F.formatarNumero(unitario)} /un</b></div>`;
       linhas += `<div class="linha"><span>Total no ${nomeDestino}</span><b class="num ouro">${F.formatarNumero(unitario * quantidade)}</b></div>`;
@@ -325,6 +397,9 @@
     let totalMercado = 0;
     let quantidadeTotal = 0;
     let itensComMercado = 0;
+    let totalReservado = 0;
+    let totalIgnorado = 0;
+    const reservas = calcularReservas();
 
     for (const entrada of estadoJogo.inventario) {
       const item = dados.itens.get(entrada.itemId);
@@ -332,14 +407,20 @@
       if (!item || quantidade <= 0) continue;
       const destino = destinoDoItem(item);
       const unitario = destino === "nenhum" ? 0 : item.npcPrice || 0;
-      const total = unitario * quantidade;
+      const ignorado = !!reservasUsuario.ignorar[item.id];
+      const reserva = reservas.get(item.id) || null;
+      const reservado = ignorado ? 0 : Math.min(quantidade, reserva ? reserva.qtd : 0);
+      const livre = ignorado ? 0 : quantidade - reservado;
+      const total = unitario * livre;
       const mercado = precoMercadoDe(item);
       if (destino === "mark") totalMark += total;
       if (destino === "flint") totalFlint += total;
       if (mercado) itensComMercado++;
-      totalMercado += (mercado || unitario) * quantidade;
+      if (!ignorado) totalMercado += (mercado || unitario) * livre;
+      totalReservado += unitario * reservado;
+      if (ignorado) totalIgnorado += unitario * quantidade;
       quantidadeTotal += quantidade;
-      linhas.push({ item, quantidade, destino, unitario, total, mercado });
+      linhas.push({ item, quantidade, destino, unitario, total, mercado, reserva, reservado, livre, ignorado });
     }
     linhas.sort((a, b) => b.total - a.total || b.quantidade - a.quantidade);
 
@@ -356,7 +437,7 @@
 
     return {
       linhas, totalMark, totalFlint, totalMercado, quantidadeTotal, itensComMercado,
-      totalPokes, quantidadePokes: pokesVendaveis.length, totalBolas,
+      totalPokes, quantidadePokes: pokesVendaveis.length, totalBolas, totalReservado, totalIgnorado,
       totalGeral: totalMark + totalFlint
     };
   }
@@ -415,6 +496,44 @@
     }, 800);
   }
 
+  function versaoMaior(a, b) {
+    const pa = String(a).split(".").map(Number);
+    const pb = String(b).split(".").map(Number);
+    for (let i = 0; i < 3; i++) {
+      if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0);
+    }
+    return false;
+  }
+
+  function mostrarNovidade() {
+    const faixa = ref("novidade");
+    let atual = "0";
+    try {
+      atual = chrome.runtime.getManifest().version;
+    } catch (erro) {}
+    const tem = novidade && versaoMaior(novidade.versao, atual);
+    faixa.hidden = !tem;
+    lancador.classList.toggle("novidade", !!tem);
+    if (tem) {
+      faixa.innerHTML = `<b>Versão ${esc(novidade.versao)} disponível</b><span>${esc(novidade.resumo || "Atualize para ganhar as novidades.")}</span><a href="https://skymerlight.github.io/pokelupa/#atualizar" target="_blank" rel="noopener">Como atualizar</a>`;
+    }
+  }
+
+  async function verificarVersao() {
+    const guardado = await ler(chaves.novidade);
+    if (guardado && Date.now() - (guardado.checadoEm || 0) < 3 * 60 * 60 * 1000) {
+      novidade = guardado;
+      mostrarNovidade();
+      return;
+    }
+    try {
+      const info = await fetch(`${enderecoVersao}?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json());
+      novidade = { versao: info.versao, resumo: info.resumo || "", checadoEm: Date.now() };
+      gravar(chaves.novidade, novidade);
+      mostrarNovidade();
+    } catch (erro) {}
+  }
+
   function atualizarStatus() {
     if (!ultimoContato) {
       statusTopo.textContent = dados.pronto ? "Abra a mochila no jogo ou clique em ↻" : "Carregando catálogo…";
@@ -435,24 +554,27 @@
       corpo.innerHTML = htmlVazio("Nenhuma mochila lida ainda", "Abra a mochila no jogo uma vez, ou peça os dados direto:", true);
       return;
     }
-    const categorias = ["todas", ...new Set(mochila.linhas.map(l => l.item.category))];
+    const categorias = ["todas", "reservados", ...new Set(mochila.linhas.map(l => l.item.category))];
+    const nomeCategoria = c => c === "todas" ? "Todas" : c === "reservados" ? "Não vender" : nomesCategorias[c] || c;
     corpo.innerHTML = `
       <div class="destaque">
         <div class="moeda">${svgLogo}</div>
-        <div class="rotulo">Valor da mochila</div>
+        <div class="rotulo">Pode vender hoje</div>
         <div class="grande num">${F.formatarNumero(mochila.totalGeral)}<small>gold</small></div>
-        <div class="nota-rodape">${F.formatarNumero(mochila.quantidadeTotal)} itens em ${mochila.linhas.length} tipos · vendendo tudo aos NPCs</div>
+        <div class="nota-rodape">${F.formatarNumero(mochila.quantidadeTotal)} itens em ${mochila.linhas.length} tipos · já sem o que está reservado</div>
       </div>
       <div class="grade">
         <div class="quadro"><span>Mark (loot)</span><b class="num">${F.formatarCurto(mochila.totalMark)}</b><i>itens aceitos pelo Mark</i></div>
         <div class="quadro"><span>Flint (pedras)</span><b class="num">${F.formatarCurto(mochila.totalFlint)}</b><i>pedras de evolução</i></div>
+        <div class="quadro clicavel" data-categoria="reservados"><span>Reservado</span><b class="num">${F.formatarCurto(mochila.totalReservado)}</b><i>clã, craft e itens guardados</i></div>
         <div class="quadro"><span>Pelo mercado</span><b class="num">${F.formatarCurto(mochila.totalMercado)}</b><i>${mochila.itensComMercado ? `${mochila.itensComMercado} itens com preço visto` : "abra o mercado p/ aprender"}</i></div>
-        <div class="quadro"><span>Pokémons à venda</span><b class="num">${F.formatarCurto(mochila.totalPokes)}</b><i>${mochila.quantidadePokes} fora do time</i></div>
       </div>
+      ${mochila.totalIgnorado ? `<div class="nota-lateral">${F.formatarCurto(mochila.totalIgnorado)} em itens ignorados ficaram fora da conta.</div>` : ""}
       <div class="ferramentas">
         <input class="busca" data-campo="buscaMochila" placeholder="Buscar item…" value="${esc(visao.buscaMochila)}">
       </div>
-      <div class="chips">${categorias.map(c => `<button class="chip ${visao.categoriaMochila === c ? "ativo" : ""}" data-categoria="${esc(c)}">${esc(c === "todas" ? "Todas" : nomesCategorias[c] || c)}</button>`).join("")}</div>
+      <div class="chips">${categorias.map(c => `<button class="chip ${visao.categoriaMochila === c ? "ativo" : ""}" data-categoria="${esc(c)}">${esc(nomeCategoria(c))}</button>`).join("")}</div>
+      <div class="legenda">🔒 guardar (nunca vender) · 🚫 ignorar no valor</div>
       <div class="lista" data-ref-lista="mochila"></div>
     `;
     desenharListaMochila(mochila);
@@ -466,22 +588,34 @@
     const busca = semAcento(visao.buscaMochila);
     const maior = mochila.linhas.reduce((m, l) => Math.max(m, l.total), 0) || 1;
     const filtradas = mochila.linhas.filter(l =>
-      (visao.categoriaMochila === "todas" || l.item.category === visao.categoriaMochila) &&
+      (visao.categoriaMochila === "todas" ||
+        (visao.categoriaMochila === "reservados" ? (l.reserva || l.ignorado) : l.item.category === visao.categoriaMochila)) &&
       (!busca || semAcento(l.item.name).includes(busca))
     );
     if (!filtradas.length) {
-      alvo.innerHTML = `<div class="vazio" style="padding:18px">Nada encontrado.</div>`;
+      alvo.innerHTML = `<div class="vazio" style="padding:18px">${visao.categoriaMochila === "reservados" ? "Nada reservado ainda. Abra o painel do clã ou o de crafts no jogo, ou use o 🔒 nos itens." : "Nada encontrado."}</div>`;
       return;
     }
     alvo.innerHTML = filtradas.slice(0, 400).map(l => {
-      const etiqueta = l.destino === "flint" ? '<span class="etiqueta pedra">FLINT</span>' : l.destino === "nenhum" ? '<span class="etiqueta nao">SEM VENDA</span>' : "";
-      const sub = l.destino === "nenhum" ? `${F.formatarNumero(l.quantidade)} un` : `${F.formatarNumero(l.quantidade)} × ${F.formatarNumero(l.unitario)}`;
-      const mercado = l.mercado ? `<span>mercado ${F.formatarCurto(l.mercado * l.quantidade)}</span>` : `<span>${l.total ? ((l.total / (mochila.totalGeral || 1)) * 100).toFixed(1).replace(".", ",") + "%" : ""}</span>`;
+      const etiquetas = [];
+      if (l.destino === "flint") etiquetas.push('<span class="etiqueta pedra">FLINT</span>');
+      if (l.destino === "nenhum") etiquetas.push('<span class="etiqueta nao">SEM VENDA</span>');
+      if (l.reserva && !l.ignorado) etiquetas.push(`<span class="etiqueta reserva">${esc(rotuloReserva(l.reserva))}</span>`);
+      if (l.ignorado) etiquetas.push('<span class="etiqueta nao">IGNORADO</span>');
+      let sub = l.destino === "nenhum" ? `${F.formatarNumero(l.quantidade)} un` : `${F.formatarNumero(l.quantidade)} × ${F.formatarNumero(l.unitario)}`;
+      if (l.reservado && l.livre) sub += ` · livre ${F.formatarNumero(l.livre)}`;
+      if (l.reservado && !l.livre) sub += " · tudo reservado";
+      const direita = l.mercado ? `<span>mercado ${F.formatarCurto(l.mercado * l.livre)}</span>` : `<span>${l.total ? ((l.total / (mochila.totalGeral || 1)) * 100).toFixed(1).replace(".", ",") + "%" : ""}</span>`;
+      const guardado = !!reservasUsuario.guardar[l.item.id];
       return `
-        <div class="item-linha">
+        <div class="item-linha com-botoes ${l.ignorado ? "apagado" : ""}">
           <div class="icone"><img src="${esc(urlIconeItem(l.item))}" alt="" loading="lazy"></div>
-          <div class="meio"><b>${esc(l.item.name)}${etiqueta}</b><span class="num">${sub}</span></div>
-          <div class="fim"><b class="num">${l.total ? F.formatarCurto(l.total) : "—"}</b>${mercado}</div>
+          <div class="meio"><b>${esc(l.item.name)}${etiquetas.join("")}</b><span class="num">${sub}</span></div>
+          <div class="fim"><b class="num">${l.total ? F.formatarCurto(l.total) : "—"}</b>${direita}</div>
+          <div class="botoes-item">
+            <button class="mini ${guardado ? "ligado" : ""}" data-guardar="${l.item.id}" title="${guardado ? "Parar de guardar" : "Guardar: nunca vender este item"}">🔒</button>
+            <button class="mini ${l.ignorado ? "ligado" : ""}" data-ignorar="${l.item.id}" title="${l.ignorado ? "Voltar a contar no valor" : "Ignorar no valor da mochila"}">🚫</button>
+          </div>
           <div class="fatia"><i style="width:${(l.total / maior * 100).toFixed(1)}%"></i></div>
         </div>`;
     }).join("");
@@ -494,6 +628,13 @@
     });
   }
 
+  const faixasDeQualidade = ["Fraca", "Comum", "Incomum", "Rara", "Épica", "Lendária", "Mítica", "Anciã", "Divina"];
+  const coresDeFaixa = { Fraca: "#9aa6b3", Comum: "#63d873", Incomum: "#7fd4ff", Rara: "#b06cff", "Épica": "#f0c040", "Lendária": "#ff8c3c", "Mítica": "#b36bff", "Anciã": "#d4a017", Divina: "#dbefff" };
+
+  function pareceVendavel(x) {
+    return !x.poke.team && !x.poke.starter && !x.poke.shiny && !x.poke.locked && x.analise.nota && "CD".includes(x.analise.nota.letra);
+  }
+
   function montarPokes() {
     if (!estadoJogo.pokes) {
       corpo.innerHTML = htmlVazio("Nenhum Pokémon lido ainda", "Abra a mochila ou o time no jogo, ou peça os dados:", true);
@@ -503,7 +644,7 @@
     const contagem = {
       todos: todos.length,
       time: todos.filter(x => x.poke.team).length,
-      vender: todos.filter(x => !x.poke.team && !x.poke.starter && !x.poke.shiny && x.analise.nota && "CD".includes(x.analise.nota.letra)).length,
+      vender: todos.filter(pareceVendavel).length,
       shiny: todos.filter(x => x.poke.shiny).length
     };
     const mediaNota = todos.length ? Math.round(todos.reduce((s, x) => s + (x.analise.pontos || 0), 0) / todos.length) : 0;
@@ -519,6 +660,15 @@
           ${[["nota", "Nota"], ["poder", "Poder"], ["iv", "IV"], ["qualidade", "Qualidade"], ["nivel", "Nível"]].map(([v, t]) => `<option value="${v}" ${visao.ordemPokes === v ? "selected" : ""}>${t}</option>`).join("")}
         </select>
       </div>
+      <div class="ferramentas" style="margin-top:0">
+        <span class="rotulo-campo">IV</span>
+        <input class="busca curto" type="number" min="6" max="192" data-campo="ivMinPokes" placeholder="de" value="${esc(visao.ivMinPokes)}">
+        <span class="fraco">até</span>
+        <input class="busca curto" type="number" min="6" max="192" data-campo="ivMaxPokes" placeholder="192" value="${esc(visao.ivMaxPokes)}">
+      </div>
+      <div class="chips">
+        ${faixasDeQualidade.map(f => `<button class="chip faixa ${visao.faixasPokes.has(f) ? "ativo" : ""}" data-faixa="${esc(f)}" style="--cor-faixa:${coresDeFaixa[f]}">${esc(f)}</button>`).join("")}
+      </div>
       <div class="chips">
         ${[["todos", "Todos"], ["time", "Time"], ["vender", "Pra vender"], ["shiny", "Shiny"]].map(([v, t]) => `<button class="chip ${visao.filtroPokes === v ? "ativo" : ""}" data-filtro="${v}">${t} <span class="num">${contagem[v]}</span></button>`).join("")}
       </div>
@@ -532,6 +682,8 @@
     if (!alvo) return;
     todos = todos || analisesDosPokes();
     const busca = semAcento(visao.buscaPokes);
+    const ivMin = Number(visao.ivMinPokes) || 0;
+    const ivMax = Number(visao.ivMaxPokes) || 999;
     const ordens = {
       nota: x => x.analise.pontos ?? -1,
       poder: x => x.analise.poder ?? -1,
@@ -542,15 +694,17 @@
     const filtros = {
       todos: () => true,
       time: x => x.poke.team,
-      vender: x => !x.poke.team && !x.poke.starter && !x.poke.shiny && x.analise.nota && "CD".includes(x.analise.nota.letra),
+      vender: pareceVendavel,
       shiny: x => x.poke.shiny
     };
     const lista = todos
       .filter(filtros[visao.filtroPokes] || filtros.todos)
       .filter(x => !busca || semAcento(x.analise.nome).includes(busca))
+      .filter(x => !visao.faixasPokes.size || (x.analise.faixa && visao.faixasPokes.has(x.analise.faixa.rotulo)))
+      .filter(x => x.analise.ivTotal === null || (x.analise.ivTotal >= ivMin && x.analise.ivTotal <= ivMax))
       .sort((a, b) => ordens[visao.ordemPokes](b) - ordens[visao.ordemPokes](a));
     if (!lista.length) {
-      alvo.innerHTML = `<div class="vazio" style="padding:18px">Nenhum Pokémon aqui.</div>`;
+      alvo.innerHTML = `<div class="vazio" style="padding:18px">Nenhum Pokémon com esses filtros.</div>`;
       return;
     }
     alvo.innerHTML = lista.slice(0, 300).map(x => {
@@ -564,8 +718,8 @@
         <div class="item-linha poke-linha" data-poke="${esc(chave)}">
           <div class="icone poke">${sprite ? `<img src="${sprite}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}</div>
           <div class="meio">
-            <b>${esc(analise.nome)}${poke.shiny ? ' <span style="color:var(--ouro)">✦</span>' : ""}${poke.team ? '<span class="etiqueta time">TIME</span>' : ""}</b>
-            <span class="num">Nv ${analise.nivel} · <span style="color:${faixa.cor}">${esc(faixa.rotulo)} ×${analise.qualidade ? analise.qualidade.toFixed(2) : "?"}</span> · IV ${analise.ivTotal ?? "?"}</span>
+            <b>${esc(analise.nome)}${poke.shiny ? ' <span style="color:var(--ouro)">✦</span>' : ""}${poke.team ? '<span class="etiqueta time">TIME</span>' : ""}${poke.locked ? '<span class="etiqueta nao">🔒</span>' : ""}</b>
+            <span class="num">Nv ${analise.nivel} · <span style="color:${faixa.cor}">${esc(faixa.rotulo)} ×${analise.qualidade ? analise.qualidade.toFixed(2) : "?"}</span> · IV ${analise.ivTotal ?? "?"}${poke.sellValue ? ` · 💲${F.formatarCurto(poke.sellValue)}` : ""}</span>
           </div>
           <div class="fim" style="display:flex;gap:8px;align-items:center">
             <div><b class="num">${analise.poder !== null ? F.formatarCurto(analise.poder) : ""}</b><span>poder</span></div>
@@ -589,12 +743,13 @@
         <div class="grande num">${confiavel ? F.formatarNumero(porHora) : "…"}<small>${confiavel ? "gold/h" : "medindo (5 min)"}</small></div>
         <div class="nota-rodape">${sessao ? `Sessão de ${duracao(decorrido)} · ${F.formatarNumero(ganhos.valor)} gold em loot` : "A sessão começa na primeira leitura da mochila."}</div>
       </div>
+      <div class="explica" style="margin-top:8px">A sessão compara sua mochila de agora com a do começo e soma só o que entrou. Vender não atrapalha. Se ficar 2 h sem abrir o jogo, uma nova sessão começa sozinha.</div>
       <div class="grade">
         <div class="quadro"><span>Itens ganhos</span><b class="num">${F.formatarNumero(ganhos.lista.reduce((s, l) => s + l.quantidade, 0))}</b><i>${ganhos.lista.length} tipos diferentes</i></div>
         <div class="quadro"><span>Shinies vistos</span><b class="num">${registroShinies.length}</b><i>${registroShinies[0] ? `último ${tempoRelativo(registroShinies[0].em)}` : "nenhum ainda"}</i></div>
       </div>
       <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="botao" data-acao="novaSessao">Começar nova sessão</button>
+        <button class="botao" data-acao="novaSessao" title="Apaga o loot contado e começa a medir de novo a partir de agora">Zerar sessão</button>
         <button class="botao secundario" data-acao="atualizar">Ler mochila agora</button>
       </div>
       <div class="secao">Loot da sessão</div>
@@ -615,56 +770,77 @@
     `;
   }
 
-  function montarAnalisar() {
-    corpo.innerHTML = `
-      <div class="form" data-ref="formulario">
-        <label>Espécie<input list="pokelupa-especies" data-calc="especie" placeholder="Ex.: Geodude" autocomplete="off"></label>
-        <datalist id="pokelupa-especies">${dados.nomesEspecies.map(n => `<option value="${esc(n)}">`).join("")}</datalist>
-        <div class="seis">
-          <label>Nível<input type="number" min="1" data-calc="nivel" placeholder="50"></label>
-          <label>Qualidade<input type="number" step="0.01" min="0.5" data-calc="qualidade" placeholder="1.25"></label>
-          <label>IV total<input type="number" min="6" max="192" data-calc="ivTotal" placeholder="opcional"></label>
-        </div>
-        <div class="seis">
-          ${F.chavesStats.map(c => `<label>${F.nomesStats[c]}<input type="number" min="1" data-calc="${c}"></label>`).join("")}
-        </div>
-        <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:12px;color:var(--texto-2)"><input type="checkbox" data-calc="shiny" style="width:auto;height:auto"> Shiny</label>
-      </div>
-      <div class="secao">Resultado</div>
-      <div data-ref="resultadoCalc"><div class="vazio" style="padding:18px">Preencha espécie, nível, qualidade e os 6 atributos.</div></div>
-    `;
+  function htmlLinhaReserva(item, qtd, detalhe, tem) {
+    if (!item) return "";
+    const completo = tem !== undefined && tem >= qtd;
+    return `
+      <div class="item-linha">
+        <div class="icone"><img src="${esc(urlIconeItem(item))}" alt="" loading="lazy"></div>
+        <div class="meio"><b>${esc(item.name)}</b><span>${esc(detalhe)}</span></div>
+        <div class="fim"><b class="num" style="color:${completo ? "var(--verde)" : "var(--texto)"}">${tem !== undefined ? `${F.formatarCurto(Math.min(tem, qtd))}/` : ""}${F.formatarCurto(qtd)}</b><span>${completo ? "completo" : "guardar"}</span></div>
+      </div>`;
   }
 
-  function calcularManual() {
-    const form = corpo.querySelector('[data-ref="formulario"]');
-    const saida = corpo.querySelector('[data-ref="resultadoCalc"]');
-    if (!form || !saida) return;
-    const valor = nome => form.querySelector(`[data-calc="${nome}"]`);
-    const especie = dados.especiesPorNome.get(String(valor("especie").value).trim().toLowerCase());
-    const nivel = Number(valor("nivel").value);
-    const qualidade = Number(String(valor("qualidade").value).replace(",", "."));
-    const stats = {};
-    let completos = true;
-    for (const c of F.chavesStats) {
-      const n = Number(valor(c).value);
-      if (!n) completos = false;
-      stats[c] = n;
+  function quantidadeNaMochila(id) {
+    const entrada = (estadoJogo.inventario || []).find(e => e.itemId === Number(id));
+    return entrada ? entrada.quantity : 0;
+  }
+
+  function montarReservas() {
+    const tarefa = infoCla && infoCla.tarefa;
+    const ativas = berriesAtivas();
+    const unidades = Math.max(1, Number(reservasUsuario.unidadesCraft) || 1);
+    const listaBerries = receitas ? Object.keys(receitas).map(id => ({ id, item: dados.itens.get(Number(id)) })).filter(b => b.item).sort((a, b) => a.item.name.localeCompare(b.item.name)) : [];
+    const escolhidasManual = Object.keys(reservasUsuario.berries).some(id => reservasUsuario.berries[id]);
+    const guardados = Object.keys(reservasUsuario.guardar).filter(id => reservasUsuario.guardar[id]);
+    const ignorados = Object.keys(reservasUsuario.ignorar).filter(id => reservasUsuario.ignorar[id]);
+
+    const ingredientes = new Map();
+    for (const id of ativas) {
+      const item = dados.itens.get(Number(id));
+      const selvagem = item ? /^wild\s/i.test(item.name) : false;
+      const erva = selvagem ? ervas.selvagem : ervas.comum;
+      ingredientes.set(erva, (ingredientes.get(erva) || 0) + ervas.porUnidade * unidades);
+      for (const ing of receitas[id]) ingredientes.set(ing.id, (ingredientes.get(ing.id) || 0) + ing.qtd * unidades);
     }
-    if (!especie || !nivel || !qualidade) {
-      saida.innerHTML = `<div class="vazio" style="padding:18px">Preencha espécie, nível e qualidade.</div>`;
-      return;
-    }
-    const ivTotal = Number(valor("ivTotal").value) || undefined;
-    const poke = {
-      name: especie.name, speciesId: especie.pokeId, level: nivel, quality: qualidade,
-      stats: completos ? stats : null, ivTotal, shiny: valor("shiny").checked,
-      type1: especie.type1, type2: especie.type2
-    };
-    if (!completos && !ivTotal) {
-      saida.innerHTML = `<div class="vazio" style="padding:18px">Informe os 6 atributos ou o IV total.</div>`;
-      return;
-    }
-    saida.innerHTML = `<div class="expandido"><div class="cartao ${poke.shiny ? "shiny" : ""}">${Cartao.htmlPoke(poke, acharEspecie(poke))}</div></div>`;
+
+    corpo.innerHTML = `
+      <div class="explica">Itens daqui ficam marcados como <b>não vender</b>: saem do valor da mochila e ganham um aviso dourado na Loja do Mark (fica vermelho se você marcar para vender).</div>
+
+      <div class="secao">Missão do clã</div>
+      ${tarefa ? `
+        <div class="nota-lateral">${esc(infoCla.cla ? infoCla.cla[0].toUpperCase() + infoCla.cla.slice(1) : "Clã")} · próximo rank ${esc(tarefa.nome || tarefa.rank || "")} · lido ${tempoRelativo(infoCla.em)}</div>
+        <div class="lista">${tarefa.itens.length ? tarefa.itens.map(i => htmlLinhaReserva(dados.itens.get(i.id) || { name: i.nome, icon: "" }, i.precisa, "entregar no clã", quantidadeNaMochila(i.id))).join("") : `<div class="vazio" style="padding:14px">Esse rank não pede itens.</div>`}</div>
+      ` : `<div class="vazio" style="padding:16px">Abra a janela de <b>Clãs</b> no jogo uma vez. A PokeLupa lê a missão do seu próximo rank sozinha.</div>`}
+
+      <div class="secao">Craft de berries</div>
+      ${receitas ? `
+        <div class="ferramentas" style="margin-top:0">
+          <span class="rotulo-campo">Guardar para</span>
+          <input class="busca curto" type="number" min="1" data-campo="unidadesCraft" value="${unidades}">
+          <span class="fraco">unidades de cada berry</span>
+        </div>
+        <div class="nota-lateral">${escolhidasManual ? "Usando as berries que você marcou abaixo." : craftLiberadas.length ? `Usando as ${craftLiberadas.length} receitas que você já liberou (abra o painel de crafts para atualizar).` : "Marque as berries que você crafta, ou abra o painel de crafts no jogo para detectar as liberadas."}</div>
+        <div class="chips berries">${listaBerries.map(b => {
+          const marcada = escolhidasManual ? !!reservasUsuario.berries[b.id] : ativas.includes(b.id);
+          return `<button class="chip ${marcada ? "ativo" : ""}" data-berry="${b.id}">${esc(b.item.name)}</button>`;
+        }).join("")}</div>
+        ${escolhidasManual ? `<button class="botao secundario pequeno" data-acao="berriesAutomaticas">Voltar para automático</button>` : ""}
+        ${ingredientes.size ? `<div class="lista" style="margin-top:8px">${[...ingredientes].sort((a, b) => b[1] - a[1]).map(([id, qtd]) => htmlLinhaReserva(dados.itens.get(id), qtd, "ingrediente de craft", quantidadeNaMochila(id))).join("")}</div>` : ""}
+      ` : `<div class="vazio" style="padding:16px">Lendo as receitas do jogo… entre no mapa e espere alguns segundos.</div>`}
+
+      <div class="secao">Guardados por você</div>
+      ${guardados.length ? `<div class="lista">${guardados.map(id => {
+        const item = dados.itens.get(Number(id));
+        return item ? `<div class="item-linha com-botoes"><div class="icone"><img src="${esc(urlIconeItem(item))}" alt=""></div><div class="meio"><b>${esc(item.name)}</b><span>nunca vender</span></div><div class="fim"><b class="num">${F.formatarCurto(quantidadeNaMochila(id))}</b><span>na mochila</span></div><div class="botoes-item"><button class="mini ligado" data-guardar="${id}" title="Parar de guardar">🔒</button></div></div>` : "";
+      }).join("")}</div>` : `<div class="vazio" style="padding:14px">Use o 🔒 na aba Mochila para guardar um item.</div>`}
+
+      <div class="secao">Ignorados no valor</div>
+      ${ignorados.length ? `<div class="chips">${ignorados.map(id => {
+        const item = dados.itens.get(Number(id));
+        return item ? `<button class="chip ativo" data-ignorar="${id}" title="Voltar a contar">${esc(item.name)} ✕</button>` : "";
+      }).join("")}</div>` : `<div class="vazio" style="padding:14px">Use o 🚫 na aba Mochila para tirar um item da conta.</div>`}
+    `;
   }
 
   function htmlAlternar(chave, titulo, descricao) {
@@ -705,15 +881,21 @@
     lancador.style.display = ajustes.lancadorVisivel && !visao.painelAberto ? "" : "none";
     atualizarStatus();
     if (!visao.painelAberto) return;
-    if (visao.aba === "analisar" && !forcar) return;
     const rolagem = corpo.scrollTop;
-    ({ mochila: montarMochila, pokes: montarPokes, sessao: montarSessao, analisar: montarAnalisar, ajustes: montarAjustes }[visao.aba])();
+    ({ mochila: montarMochila, pokes: montarPokes, sessao: montarSessao, reservas: montarReservas, ajustes: montarAjustes }[visao.aba])();
     if (!forcar) corpo.scrollTop = rolagem;
   }
 
   function aoMudarDados(motivo) {
-    renderizar(motivo === "catalogo");
+    const focado = sombra.activeElement;
+    if (focado && focado.matches("input") && visao.painelAberto && motivo !== "catalogo") {
+      if (visao.aba === "mochila") desenharListaMochila();
+      else if (visao.aba === "pokes") desenharListaPokes();
+    } else {
+      renderizar(motivo === "catalogo");
+    }
     salvarResumo();
+    enviarMarcacoes();
   }
 
   function abrirPainel(aberto) {
@@ -800,6 +982,24 @@
       aoMudarDados();
       return;
     }
+    if (tipo === "cla") {
+      infoCla = { ...carga, em: Date.now() };
+      gravar(chaves.cla, infoCla);
+      aoMudarDados("cla");
+      return;
+    }
+    if (tipo === "craft") {
+      craftLiberadas = carga.liberadas || [];
+      gravar(chaves.craft, craftLiberadas);
+      aoMudarDados("craft");
+      return;
+    }
+    if (tipo === "receitas") {
+      receitas = carga;
+      gravar(chaves.receitas, receitas);
+      aoMudarDados("receitas");
+      return;
+    }
     if (tipo === "shiny") {
       registrarShiny(carga);
       return;
@@ -812,8 +1012,35 @@
   });
 
   camada.addEventListener("click", evento => {
-    const alvo = evento.target.closest("[data-acao],[data-aba],[data-categoria],[data-filtro],[data-alternar],[data-poke]");
+    const alvo = evento.target.closest("[data-acao],[data-aba],[data-categoria],[data-filtro],[data-alternar],[data-guardar],[data-ignorar],[data-berry],[data-faixa],[data-poke]");
     if (!alvo) return;
+    if (alvo.dataset.guardar || alvo.dataset.ignorar) {
+      const lista = alvo.dataset.guardar ? reservasUsuario.guardar : reservasUsuario.ignorar;
+      const id = alvo.dataset.guardar || alvo.dataset.ignorar;
+      if (lista[id]) delete lista[id];
+      else lista[id] = true;
+      salvarReservas();
+      return;
+    }
+    if (alvo.dataset.berry) {
+      if (!Object.keys(reservasUsuario.berries).some(id => reservasUsuario.berries[id])) {
+        for (const id of berriesAtivas()) reservasUsuario.berries[id] = true;
+      }
+      const id = alvo.dataset.berry;
+      if (reservasUsuario.berries[id]) delete reservasUsuario.berries[id];
+      else reservasUsuario.berries[id] = true;
+      if (!Object.keys(reservasUsuario.berries).length) reservasUsuario.craftAutomatico = false;
+      salvarReservas();
+      return;
+    }
+    if (alvo.dataset.faixa) {
+      const faixa = alvo.dataset.faixa;
+      if (visao.faixasPokes.has(faixa)) visao.faixasPokes.delete(faixa);
+      else visao.faixasPokes.add(faixa);
+      alvo.classList.toggle("ativo", visao.faixasPokes.has(faixa));
+      desenharListaPokes();
+      return;
+    }
     if (alvo.dataset.aba) {
       visao.aba = alvo.dataset.aba;
       renderizar(true);
@@ -864,6 +1091,11 @@
         renderizar(false);
         salvarResumo();
         break;
+      case "berriesAutomaticas":
+        reservasUsuario.berries = {};
+        reservasUsuario.craftAutomatico = true;
+        salvarReservas();
+        break;
       case "limparMercado":
         precosMercado = {};
         gravar(chaves.mercado, precosMercado);
@@ -880,6 +1112,15 @@
     }
   });
 
+  let temporizadorUnidades = 0;
+
+  function salvarReservas() {
+    gravar(chaves.reservas, reservasUsuario);
+    renderizar(false);
+    salvarResumo();
+    enviarMarcacoes();
+  }
+
   camada.addEventListener("input", evento => {
     const campo = evento.target;
     if (campo.dataset.campo === "buscaMochila") {
@@ -891,8 +1132,14 @@
     } else if (campo.dataset.campo === "ordemPokes") {
       visao.ordemPokes = campo.value;
       desenharListaPokes();
-    } else if (campo.dataset.calc) {
-      calcularManual();
+    } else if (campo.dataset.campo === "ivMinPokes" || campo.dataset.campo === "ivMaxPokes") {
+      visao[campo.dataset.campo] = campo.value;
+      desenharListaPokes();
+    } else if (campo.dataset.campo === "unidadesCraft") {
+      const valor = Math.max(1, Math.floor(Number(campo.value) || 1));
+      reservasUsuario.unidadesCraft = valor;
+      clearTimeout(temporizadorUnidades);
+      temporizadorUnidades = setTimeout(() => salvarReservas(), 500);
     }
   });
   camada.addEventListener("change", evento => {
@@ -974,9 +1221,14 @@
   }, 30000);
 
   (async function iniciar() {
-    const [ajustesSalvos, mercadoSalvo, sessaoSalva, shiniesSalvos] = await Promise.all([
-      ler(chaves.ajustes), ler(chaves.mercado), ler(chaves.sessao), ler(chaves.shinies)
+    const [ajustesSalvos, mercadoSalvo, sessaoSalva, shiniesSalvos, reservasSalvas, claSalvo, receitasSalvas, craftSalvo] = await Promise.all([
+      ler(chaves.ajustes), ler(chaves.mercado), ler(chaves.sessao), ler(chaves.shinies),
+      ler(chaves.reservas), ler(chaves.cla), ler(chaves.receitas), ler(chaves.craft)
     ]);
+    reservasUsuario = { ...reservasPadrao, ...(reservasSalvas || {}) };
+    infoCla = claSalvo || null;
+    receitas = receitasSalvas || null;
+    craftLiberadas = Array.isArray(craftSalvo) ? craftSalvo : [];
     ajustes = { ...ajustesPadrao, ...(ajustesSalvos || {}) };
     precosMercado = mercadoSalvo || {};
     sessao = sessaoSalva || null;
@@ -985,5 +1237,6 @@
     renderizar(true);
     await carregarCatalogo();
     pedirAoJogo("pedirEstado");
+    verificarVersao();
   })();
 })();
