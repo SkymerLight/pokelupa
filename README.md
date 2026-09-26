@@ -25,9 +25,11 @@
 | 🔎 **Cartão no mouse** | Em qualquer Pokémon da mochila, time, chat ou mercado: IV de cada atributo, qualidade, nota de S a D, poder e fraquezas. Em itens: preço no NPC, total, preço de mercado e quem dropa. |
 | 💰 **Valor da mochila** | Lê a mochila inteira direto do jogo (sem print e sem rolar a tela) e soma tudo pelo preço do Mark e do Flint. Quando você abre o mercado ela aprende o menor preço de cada item. |
 | ⏱️ **Loot por hora** | Conta o que entrou na mochila durante a sessão e calcula quanto isso rende por hora. Vender itens não atrapalha a conta. |
-| 🏆 **Ranking de Pokémons** | Todos os seus Pokémons ordenados por nota, poder, IV, qualidade ou nível, com filtro "Pra vender". |
+| 🏆 **Ranking** | Seus Pokémons ou os anúncios do mercado, do melhor para o pior (ou o contrário), com busca por nome e filtros de raridade, IV e qualidade. No mercado ainda ordena por custo-benefício. |
+| ⚔️ **Contra** | Digite o Pokémon da hunt ou do boss e veja quais dos seus (e quais espécies do jogo) ganham dele, com o golpe que vão usar e o golpe que vão levar. |
 | ✨ **Alerta de shiny** | Aviso e som quando aparece shiny no seu mapa, com histórico. |
-| 🛡️ **Reservas (não vender)** | Lê a missão do seu próximo rank de clã e as receitas de berries direto do jogo. Esses itens saem do valor da mochila e ganham um aviso na Loja do Mark (vermelho se você marcar para vender). Dá para guardar 🔒 ou ignorar 🚫 qualquer item. |
+| 🛡️ **Reservas (não vender)** | Lê a missão do seu próximo rank de clã e as receitas de berries direto do jogo. Esses itens saem do valor da mochila e ganham um aviso na Loja do Mark (vermelho se você marcar para vender). Dá para guardar 🔒 (o jogo não deixa marcar para vender) ou ignorar 🚫 qualquer item. Antes de vender algo reservado, a PokeLupa pede confirmação. |
+| 🤝 **Banco de missões de clã** | O jogo só mostra a missão do seu próximo rank. Quem usa a PokeLupa envia a sua com um clique e todo mundo passa a ver os itens de todos os ranks. |
 | 🏷️ **Nota na Loja do Mark** | Na aba Pokémon da loja, cada Pokémon mostra a nota S–D ao lado. |
 
 Atalho: **Alt+L** abre e fecha o painel dentro do jogo.

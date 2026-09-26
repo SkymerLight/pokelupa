@@ -333,7 +333,77 @@
     return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/${pasta}/${idEspecie}.png`;
   }
 
+  function hpDeCombate(hp) {
+    return Math.max(24, Math.round(hp * 12));
+  }
+
+  function golpeEmArea(golpe) {
+    return golpe.power >= 300;
+  }
+
+  function ataquesAprendidos(ataques, nivel) {
+    return (ataques || []).filter(a => a && a.power > 0 && a.category !== "STATUS" && !golpeEmArea(a) && (a.learnLevel || 1) <= nivel);
+  }
+
+  function golpesEmArea(ataques) {
+    return (ataques || []).filter(a => a && golpeEmArea(a));
+  }
+
+  function danoPorSegundo(atacante, defensor) {
+    let total = 0;
+    let melhor = null;
+    for (const golpe of atacante.ataques) {
+      const efetividade = multiplicadorDefensivo(golpe.type, defensor.tipos[0], defensor.tipos[1]);
+      if (efetividade === 0) continue;
+      const bonusTipo = atacante.tipos.includes(golpe.type) ? 1.5 : 1;
+      const especial = golpe.category === "SPECIAL";
+      const forca = especial ? atacante.stats.spAtk : atacante.stats.atk;
+      const resistencia = Math.max(1, especial ? defensor.stats.spDef : defensor.stats.def);
+      const dano = golpe.power * bonusTipo * efetividade * forca / resistencia;
+      total += dano / Math.max(1, (golpe.cooldownMs || 10000) / 1000);
+      if (!melhor || dano > melhor.dano) melhor = { nome: golpe.name, tipo: golpe.type, poder: golpe.power, efetividade, dano };
+    }
+    return { total, melhor };
+  }
+
+  function montarCombatente(especie, nivel, stats, tipos) {
+    const bases = basesDaEspecie(especie);
+    const statsFinais = stats || calcularStats(bases, { hp: 16, atk: 16, def: 16, spAtk: 16, spDef: 16, speed: 16 }, nivel, 1);
+    return {
+      tipos: (tipos || [especie.type1, especie.type2]).filter(Boolean),
+      stats: statsFinais,
+      hp: hpDeCombate(statsFinais.hp),
+      ataques: ataquesAprendidos(especie.ataques, nivel)
+    };
+  }
+
+  function avaliarConfronto(meu, alvo) {
+    const ataque = danoPorSegundo(meu, alvo);
+    const defesa = danoPorSegundo(alvo, meu);
+    const tempoParaVencer = ataque.total > 0 ? alvo.hp / ataque.total : Infinity;
+    const tempoParaCair = defesa.total > 0 ? meu.hp / defesa.total : Infinity;
+    let vantagem;
+    if (tempoParaVencer === Infinity) vantagem = 0;
+    else if (tempoParaCair === Infinity) vantagem = 99;
+    else vantagem = tempoParaCair / tempoParaVencer;
+    return { vantagem, tempoParaVencer, tempoParaCair, meuGolpe: ataque.melhor, golpeDele: defesa.melhor };
+  }
+
+  function rotuloVantagem(vantagem) {
+    if (vantagem >= 4) return { texto: "Amassa", cor: "#ffd166" };
+    if (vantagem >= 2) return { texto: "Muito bom", cor: "#4ade80" };
+    if (vantagem >= 1.2) return { texto: "Bom", cor: "#60a5fa" };
+    if (vantagem >= 0.8) return { texto: "Equilibrado", cor: "#fbbf24" };
+    return { texto: "Evite", cor: "#f87171" };
+  }
+
   raiz.PokeLupaFormulas = {
+    hpDeCombate,
+    golpesEmArea,
+    montarCombatente,
+    avaliarConfronto,
+    rotuloVantagem,
+    multiplicadorDefensivo,
     chavesStats,
     nomesStats,
     expoentes,

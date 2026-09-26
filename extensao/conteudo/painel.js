@@ -16,11 +16,14 @@
     cla: "pokelupa:cla",
     receitas: "pokelupa:receitas",
     craft: "pokelupa:craft",
-    novidade: "pokelupa:novidade"
+    novidade: "pokelupa:novidade",
+    bancoClas: "pokelupa:bancoClas",
+    pokesMercado: "pokelupa:pokesMercado"
   };
+  const enderecoBancoClas = "https://skymerlight.github.io/pokelupa/dados/clas.json";
   const enderecoVersao = "https://skymerlight.github.io/pokelupa/download/versao.json";
   const ervas = { comum: 19354, selvagem: 19356, porUnidade: 25 };
-  const reservasPadrao = { guardar: {}, ignorar: {}, berries: {}, unidadesCraft: 10, craftAutomatico: true };
+  const reservasPadrao = { guardar: {}, ignorar: {}, berries: {}, unidadesCraft: 10, craftAutomatico: true, proximosRanks: false };
   const ajustesPadrao = {
     cartaoAtivo: true,
     alertaShiny: true,
@@ -46,6 +49,9 @@
   let receitas = null;
   let craftLiberadas = [];
   let novidade = null;
+  let bancoClas = null;
+  let pokesMercado = [];
+  let pokesMercadoEm = 0;
 
   const dados = {
     itens: new Map(),
@@ -66,6 +72,12 @@
     filtroPokes: "todos",
     ordemPokes: "nota",
     faixasPokes: new Set(),
+    fontePokes: "meus",
+    qualMinPokes: "",
+    qualMaxPokes: "",
+    ordemInvertida: false,
+    buscaContra: "",
+    claVisto: "",
     ivMinPokes: "",
     ivMaxPokes: "",
     pokeAberto: null,
@@ -163,7 +175,8 @@
       <div class="faixa-novidade" data-ref="novidade" hidden></div>
       <div class="abas" data-ref="abas">
         <button class="aba" data-aba="mochila">Mochila</button>
-        <button class="aba" data-aba="pokes">Pokémons</button>
+        <button class="aba" data-aba="pokes">Ranking</button>
+        <button class="aba" data-aba="contra">Contra</button>
         <button class="aba" data-aba="sessao">Sessão</button>
         <button class="aba" data-aba="reservas">Reservas</button>
         <button class="aba" data-aba="ajustes">Ajustes</button>
@@ -211,7 +224,8 @@
           pokeId: especie.pokeId, name: especie.name, type1: especie.type1, type2: especie.type2,
           rarity: especie.rarity, baseHp: especie.baseHp, baseAtk: especie.baseAtk, baseDef: especie.baseDef,
           baseSpAtk: especie.baseSpAtk, baseSpDef: especie.baseSpDef, baseSpeed: especie.baseSpeed,
-          sellValue: especie.sellValue, huntLevel: especie.huntLevel
+          sellValue: especie.sellValue, huntLevel: especie.huntLevel,
+          ataques: (especie.attacks || []).map(a => ({ name: a.name, power: a.power, type: a.type, category: a.category, cooldownMs: a.cooldownMs, learnLevel: a.learnLevel }))
         };
         dados.especies.set(especie.pokeId, enxuta);
         dados.especiesPorNome.set(especie.name.toLowerCase(), enxuta);
@@ -278,6 +292,11 @@
     };
     if (infoCla && infoCla.tarefa) {
       for (const item of infoCla.tarefa.itens) if (item.precisa > 0) somar(item.id, item.precisa, "clã");
+      const ranksDoBanco = reservasUsuario.proximosRanks && bancoClas && bancoClas.clas ? bancoClas.clas[infoCla.cla] || {} : {};
+      for (const rank in ranksDoBanco) {
+        if (Number(rank) <= Number(infoCla.tarefa.rank)) continue;
+        for (const item of ranksDoBanco[rank].itens || []) somar(item.id, item.qtd, "clã");
+      }
     }
     const unidades = Math.max(1, Number(reservasUsuario.unidadesCraft) || 1);
     for (const id of berriesAtivas()) {
@@ -302,11 +321,21 @@
     const reservas = {};
     for (const [id, registro] of calcularReservas()) reservas[id] = rotuloReserva(registro);
     for (const id in reservasUsuario.ignorar) if (reservasUsuario.ignorar[id] && !reservas[id]) reservas[id] = "IGNORADO";
+    const bloqueios = {};
+    for (const [id, registro] of calcularReservas()) {
+      const item = dados.itens.get(id);
+      bloqueios[id] = {
+        nome: item ? item.name : `Item ${id}`,
+        tudo: registro.qtd === Infinity,
+        qtd: registro.qtd === Infinity ? 0 : registro.qtd,
+        motivo: [...registro.motivos].join(" + ")
+      };
+    }
     const notas = {};
     for (const x of analisesDosPokes()) {
       if (x.poke.id != null && x.analise.nota) notas[x.poke.id] = { letra: x.analise.nota.letra, pontos: x.analise.pontos };
     }
-    window.postMessage({ marca: marcaPainel, tipo: "marcacoes", dados: { reservas, notas } }, location.origin);
+    window.postMessage({ marca: marcaPainel, tipo: "marcacoes", dados: { reservas, notas, bloqueios } }, location.origin);
   }
 
   function htmlCartaoItem(alvo) {
@@ -519,6 +548,18 @@
     }
   }
 
+  async function carregarBancoClas() {
+    const guardado = await ler(chaves.bancoClas);
+    if (guardado) bancoClas = guardado.dados;
+    if (guardado && Date.now() - (guardado.em || 0) < 60 * 60 * 1000) return;
+    try {
+      const novo = await fetch(`${enderecoBancoClas}?t=${Date.now()}`, { cache: "no-store" }).then(r => r.json());
+      bancoClas = novo;
+      gravar(chaves.bancoClas, { dados: novo, em: Date.now() });
+      aoMudarDados("banco");
+    } catch (erro) {}
+  }
+
   async function verificarVersao() {
     const guardado = await ler(chaves.novidade);
     if (guardado && Date.now() - (guardado.checadoEm || 0) < 3 * 60 * 60 * 1000) {
@@ -635,12 +676,35 @@
     return !x.poke.team && !x.poke.starter && !x.poke.shiny && !x.poke.locked && x.analise.nota && "CD".includes(x.analise.nota.letra);
   }
 
+  function analisesDaFonte() {
+    if (visao.fontePokes === "mercado") {
+      return pokesMercado.map(poke => {
+        const especie = acharEspecie(poke);
+        return { poke, especie, analise: F.analisarPokemon(poke, especie), anuncio: true };
+      });
+    }
+    return analisesDosPokes();
+  }
+
+  function filtrosAtivos() {
+    return visao.buscaPokes || visao.faixasPokes.size || visao.ivMinPokes || visao.ivMaxPokes || visao.qualMinPokes || visao.qualMaxPokes || visao.filtroPokes !== "todos" || visao.ordemInvertida;
+  }
+
   function montarPokes() {
-    if (!estadoJogo.pokes) {
-      corpo.innerHTML = htmlVazio("Nenhum Pokémon lido ainda", "Abra a mochila ou o time no jogo, ou peça os dados:", true);
+    const mercado = visao.fontePokes === "mercado";
+    const fonteVazia = mercado ? !pokesMercado.length : !estadoJogo.pokes;
+    const seletorFonte = `
+      <div class="alternador">
+        <button class="${!mercado ? "ativo" : ""}" data-fonte="meus">Meus Pokémons</button>
+        <button class="${mercado ? "ativo" : ""}" data-fonte="mercado">Mercado${pokesMercado.length ? ` <span class="num">${pokesMercado.length}</span>` : ""}</button>
+      </div>`;
+    if (fonteVazia) {
+      corpo.innerHTML = seletorFonte + (mercado
+        ? htmlVazio("Nenhum anúncio lido ainda", "Abra o Mercado no jogo, vá em Pokémon e navegue pelas páginas. A PokeLupa lê cada página que você abrir e ranqueia aqui.", false)
+        : htmlVazio("Nenhum Pokémon lido ainda", "Abra a mochila ou o time no jogo, ou peça os dados:", true));
       return;
     }
-    const todos = analisesDosPokes();
+    const todos = analisesDaFonte();
     const contagem = {
       todos: todos.length,
       time: todos.filter(x => x.poke.team).length,
@@ -649,28 +713,31 @@
     };
     const mediaNota = todos.length ? Math.round(todos.reduce((s, x) => s + (x.analise.pontos || 0), 0) / todos.length) : 0;
     const melhor = todos.slice().sort((a, b) => (b.analise.pontos || 0) - (a.analise.pontos || 0))[0];
+    const chipsFiltro = mercado ? [["todos", "Todos"], ["shiny", "Shiny"]] : [["todos", "Todos"], ["time", "Time"], ["vender", "Pra vender"], ["shiny", "Shiny"]];
     corpo.innerHTML = `
-      <div class="grade" style="margin-top:0">
-        <div class="quadro"><span>Pokémons</span><b class="num">${todos.length}</b><i>${contagem.time} no time · ${contagem.shiny} shiny</i></div>
+      ${seletorFonte}
+      <div class="grade" style="margin-top:8px">
+        <div class="quadro"><span>${mercado ? "Anúncios lidos" : "Pokémons"}</span><b class="num">${todos.length}</b><i>${mercado ? `atualizado ${tempoRelativo(pokesMercadoEm)}` : `${contagem.time} no time · ${contagem.shiny} shiny`}</i></div>
         <div class="quadro"><span>Nota média</span><b class="num">${mediaNota}<span class="fraco">/100</span></b><i>${melhor ? `melhor: ${esc(melhor.analise.nome)}` : ""}</i></div>
       </div>
       <div class="ferramentas">
-        <input class="busca" data-campo="buscaPokes" placeholder="Buscar Pokémon…" value="${esc(visao.buscaPokes)}">
+        <input class="busca" data-campo="buscaPokes" list="pokelupa-especies" placeholder="Nome do Pokémon…" value="${esc(visao.buscaPokes)}">
+        <datalist id="pokelupa-especies">${dados.nomesEspecies.map(n => `<option value="${esc(n)}">`).join("")}</datalist>
         <select class="busca" data-campo="ordemPokes">
-          ${[["nota", "Nota"], ["poder", "Poder"], ["iv", "IV"], ["qualidade", "Qualidade"], ["nivel", "Nível"]].map(([v, t]) => `<option value="${v}" ${visao.ordemPokes === v ? "selected" : ""}>${t}</option>`).join("")}
+          ${[["nota", "Nota"], ["poder", "Poder"], ["iv", "IV"], ["qualidade", "Qualidade"], ["nivel", "Nível"], ...(mercado ? [["preco", "Preço"], ["custo", "Custo-benefício"]] : [])].map(([v, t]) => `<option value="${v}" ${visao.ordemPokes === v ? "selected" : ""}>${t}</option>`).join("")}
         </select>
+        <button class="botao-icone" data-acao="inverterOrdem" title="${visao.ordemInvertida ? "Do pior para o melhor" : "Do melhor para o pior"}">${visao.ordemInvertida ? "↑" : "↓"}</button>
       </div>
-      <div class="ferramentas" style="margin-top:0">
-        <span class="rotulo-campo">IV</span>
-        <input class="busca curto" type="number" min="6" max="192" data-campo="ivMinPokes" placeholder="de" value="${esc(visao.ivMinPokes)}">
-        <span class="fraco">até</span>
-        <input class="busca curto" type="number" min="6" max="192" data-campo="ivMaxPokes" placeholder="192" value="${esc(visao.ivMaxPokes)}">
+      <div class="grade-filtros">
+        <label>IV<span><input class="busca curto" type="number" min="6" max="192" data-campo="ivMinPokes" placeholder="mín" value="${esc(visao.ivMinPokes)}"><input class="busca curto" type="number" min="6" max="192" data-campo="ivMaxPokes" placeholder="máx" value="${esc(visao.ivMaxPokes)}"></span></label>
+        <label>Qualidade<span><input class="busca curto" type="number" step="0.01" min="0" data-campo="qualMinPokes" placeholder="mín" value="${esc(visao.qualMinPokes)}"><input class="busca curto" type="number" step="0.01" min="0" data-campo="qualMaxPokes" placeholder="máx" value="${esc(visao.qualMaxPokes)}"></span></label>
       </div>
       <div class="chips">
         ${faixasDeQualidade.map(f => `<button class="chip faixa ${visao.faixasPokes.has(f) ? "ativo" : ""}" data-faixa="${esc(f)}" style="--cor-faixa:${coresDeFaixa[f]}">${esc(f)}</button>`).join("")}
       </div>
       <div class="chips">
-        ${[["todos", "Todos"], ["time", "Time"], ["vender", "Pra vender"], ["shiny", "Shiny"]].map(([v, t]) => `<button class="chip ${visao.filtroPokes === v ? "ativo" : ""}" data-filtro="${v}">${t} <span class="num">${contagem[v]}</span></button>`).join("")}
+        ${chipsFiltro.map(([v, t]) => `<button class="chip ${visao.filtroPokes === v ? "ativo" : ""}" data-filtro="${v}">${t} <span class="num">${contagem[v]}</span></button>`).join("")}
+        <button class="chip limpar ${filtrosAtivos() ? "" : "apagado"}" data-acao="limparFiltros">✕ Limpar filtros</button>
       </div>
       <div class="lista" data-ref-lista="pokes"></div>
     `;
@@ -680,16 +747,24 @@
   function desenharListaPokes(todos) {
     const alvo = corpo.querySelector('[data-ref-lista="pokes"]');
     if (!alvo) return;
-    todos = todos || analisesDosPokes();
+    todos = todos || analisesDaFonte();
     const busca = semAcento(visao.buscaPokes);
-    const ivMin = Number(visao.ivMinPokes) || 0;
-    const ivMax = Number(visao.ivMaxPokes) || 999;
+    const numero = texto => {
+      const valor = Number(String(texto || "").replace(",", "."));
+      return texto !== "" && Number.isFinite(valor) ? valor : null;
+    };
+    const ivMin = numero(visao.ivMinPokes);
+    const ivMax = numero(visao.ivMaxPokes);
+    const qualMin = numero(visao.qualMinPokes);
+    const qualMax = numero(visao.qualMaxPokes);
     const ordens = {
       nota: x => x.analise.pontos ?? -1,
       poder: x => x.analise.poder ?? -1,
       iv: x => x.analise.ivTotal ?? -1,
       qualidade: x => x.analise.qualidade ?? -1,
-      nivel: x => x.analise.nivel ?? -1
+      nivel: x => x.analise.nivel ?? -1,
+      preco: x => -(x.poke.price || 0),
+      custo: x => x.poke.price ? Math.pow(x.analise.pontos || 0, 3) / x.poke.price : -1
     };
     const filtros = {
       todos: () => true,
@@ -697,29 +772,35 @@
       vender: pareceVendavel,
       shiny: x => x.poke.shiny
     };
+    const ordem = ordens[visao.ordemPokes] || ordens.nota;
+    const sinal = visao.ordemInvertida ? -1 : 1;
     const lista = todos
       .filter(filtros[visao.filtroPokes] || filtros.todos)
       .filter(x => !busca || semAcento(x.analise.nome).includes(busca))
       .filter(x => !visao.faixasPokes.size || (x.analise.faixa && visao.faixasPokes.has(x.analise.faixa.rotulo)))
-      .filter(x => x.analise.ivTotal === null || (x.analise.ivTotal >= ivMin && x.analise.ivTotal <= ivMax))
-      .sort((a, b) => ordens[visao.ordemPokes](b) - ordens[visao.ordemPokes](a));
+      .filter(x => ivMin === null || (x.analise.ivTotal ?? 0) >= ivMin)
+      .filter(x => ivMax === null || (x.analise.ivTotal ?? 0) <= ivMax)
+      .filter(x => qualMin === null || (x.analise.qualidade ?? 0) >= qualMin)
+      .filter(x => qualMax === null || (x.analise.qualidade ?? 0) <= qualMax)
+      .sort((a, b) => sinal * (ordem(b) - ordem(a)));
     if (!lista.length) {
       alvo.innerHTML = `<div class="vazio" style="padding:18px">Nenhum Pokémon com esses filtros.</div>`;
       return;
     }
-    alvo.innerHTML = lista.slice(0, 300).map(x => {
+    alvo.innerHTML = lista.slice(0, 300).map((x, posicao) => {
       const { poke, analise, especie } = x;
       const nota = analise.nota || { letra: "?", cor: "#94a3b8" };
       const faixa = analise.faixa || { rotulo: "—", cor: "#94a3b8" };
-      const chave = String(poke.id ?? analise.nome + analise.nivel);
+      const chave = `${x.anuncio ? "m" : "p"}${poke.id ?? analise.nome + analise.nivel + posicao}`;
       const aberto = visao.pokeAberto === chave;
       const sprite = F.urlSprite(especie && especie.pokeId, poke.shiny);
+      const extra = x.anuncio ? (poke.price ? ` · 💲${F.formatarCurto(poke.price)}` : "") : (poke.sellValue ? ` · Mark 💲${F.formatarCurto(poke.sellValue)}` : "");
       return `
         <div class="item-linha poke-linha" data-poke="${esc(chave)}">
           <div class="icone poke">${sprite ? `<img src="${sprite}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}</div>
           <div class="meio">
-            <b>${esc(analise.nome)}${poke.shiny ? ' <span style="color:var(--ouro)">✦</span>' : ""}${poke.team ? '<span class="etiqueta time">TIME</span>' : ""}${poke.locked ? '<span class="etiqueta nao">🔒</span>' : ""}</b>
-            <span class="num">Nv ${analise.nivel} · <span style="color:${faixa.cor}">${esc(faixa.rotulo)} ×${analise.qualidade ? analise.qualidade.toFixed(2) : "?"}</span> · IV ${analise.ivTotal ?? "?"}${poke.sellValue ? ` · 💲${F.formatarCurto(poke.sellValue)}` : ""}</span>
+            <b><span class="posicao num">${posicao + 1}º</span> ${esc(analise.nome)}${poke.shiny ? ' <span style="color:var(--ouro)">✦</span>' : ""}${poke.team ? '<span class="etiqueta time">TIME</span>' : ""}${poke.locked ? '<span class="etiqueta nao">🔒</span>' : ""}</b>
+            <span class="num">Nv ${analise.nivel} · <span style="color:${faixa.cor}">${esc(faixa.rotulo)} ×${analise.qualidade ? analise.qualidade.toFixed(2) : "?"}</span> · IV ${analise.ivTotal ?? "?"}${extra}</span>
           </div>
           <div class="fim" style="display:flex;gap:8px;align-items:center">
             <div><b class="num">${analise.poder !== null ? F.formatarCurto(analise.poder) : ""}</b><span>poder</span></div>
@@ -728,6 +809,97 @@
           ${aberto ? `<div class="expandido"><div class="cartao ${poke.shiny ? "shiny" : ""}">${Cartao.htmlPoke(poke, acharEspecie(poke))}</div></div>` : ""}
         </div>`;
     }).join("");
+  }
+
+  function nomeBase(nome) {
+    return String(nome).replace(/^(Nightmare|Brave|Hard|Shiny|Elder|Ancient|Enraged|Furious|Dark|Master)\s+/i, "");
+  }
+
+  function montarContra() {
+    const nomeAlvo = String(visao.buscaContra || "").trim().toLowerCase();
+    const especieAlvo = dados.especiesPorNome.get(nomeAlvo) || null;
+    let resultado = "";
+    if (!nomeAlvo) {
+      resultado = `<div class="vazio" style="padding:22px">Digite o Pokémon que você vai enfrentar (o da hunt, do boss ou do ginásio). A PokeLupa simula a luta usando os golpes, os tipos e os atributos de cada um.</div>`;
+    } else if (!especieAlvo) {
+      resultado = `<div class="vazio" style="padding:22px">Não achei "${esc(visao.buscaContra)}". Escolha um nome da lista.</div>`;
+    } else {
+      resultado = htmlResultadoContra(especieAlvo);
+    }
+    corpo.innerHTML = `
+      <div class="ferramentas" style="margin-top:0">
+        <input class="busca" data-campo="buscaContra" list="pokelupa-especies-contra" placeholder="Contra quem? Ex.: Charizard" value="${esc(visao.buscaContra)}" autocomplete="off">
+        <datalist id="pokelupa-especies-contra">${dados.nomesEspecies.map(n => `<option value="${esc(n)}">`).join("")}</datalist>
+      </div>
+      <div data-ref="resultadoContra">${resultado}</div>
+    `;
+  }
+
+  function htmlResultadoContra(especieAlvo) {
+    const nivelAlvo = especieAlvo.huntLevel > 0 ? especieAlvo.huntLevel : 50;
+    const alvoNaHunt = F.montarCombatente(especieAlvo, nivelAlvo);
+    const alvoIgual = F.montarCombatente(especieAlvo, 100);
+    const fraq = F.fraquezas(especieAlvo.type1, especieAlvo.type2);
+    const tiposGolpes = [...new Set(alvoIgual.ataques.map(a => a.type))];
+    const areaAlvo = F.golpesEmArea(especieAlvo.ataques);
+
+    const meus = analisesDosPokes().map(x => {
+      const especie = x.especie;
+      if (!especie || !x.poke.stats || x.poke.isDitto) return null;
+      const meu = F.montarCombatente(especie, x.poke.level || 1, x.poke.stats, [x.poke.type1 || especie.type1, x.poke.type2 || especie.type2]);
+      return { x, especie, resultado: F.avaliarConfronto(meu, alvoNaHunt) };
+    }).filter(Boolean).sort((a, b) => b.resultado.vantagem - a.resultado.vantagem).slice(0, 8);
+
+    const agrupados = new Map();
+    for (const especie of dados.especies.values()) {
+      if (especie.pokeId === especieAlvo.pokeId) continue;
+      const resultado = F.avaliarConfronto(F.montarCombatente(especie, 100), alvoIgual);
+      if (resultado.vantagem <= 0) continue;
+      const chave = `${resultado.vantagem.toFixed(4)}|${nomeBase(especie.name)}`;
+      if (!agrupados.has(chave)) agrupados.set(chave, { especie, resultado, variantes: [] });
+      else agrupados.get(chave).variantes.push(especie.name);
+    }
+    const especies = [...agrupados.values()].sort((a, b) => b.resultado.vantagem - a.resultado.vantagem).slice(0, 12);
+
+    const linhaResultado = (nome, especie, shiny, resultado, detalhe) => {
+      const rotulo = F.rotuloVantagem(resultado.vantagem);
+      const golpe = resultado.meuGolpe;
+      const perigo = resultado.golpeDele;
+      const sprite = F.urlSprite(especie.pokeId, shiny);
+      return `
+        <div class="item-linha contra-linha">
+          <div class="icone poke">${sprite ? `<img src="${sprite}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}</div>
+          <div class="meio">
+            <b>${esc(nome)}</b>
+            <span>${golpe ? `usa <b style="color:${Cartao.corTipo(golpe.tipo)}">${esc(golpe.nome)}</b> (${golpe.poder}${golpe.efetividade !== 1 ? ` · ${String(golpe.efetividade).replace(".", ",")}×` : ""})` : "sem golpe que acerte"}${detalhe ? ` · ${detalhe}` : ""}</span>
+            ${perigo ? `<span class="perigo">leva <b style="color:${Cartao.corTipo(perigo.tipo)}">${esc(perigo.nome)}</b>${perigo.efetividade !== 1 ? ` (${String(perigo.efetividade).replace(".", ",")}×)` : ""}</span>` : `<span class="perigo">ele não consegue te acertar</span>`}
+          </div>
+          <div class="fim"><b style="color:${rotulo.cor}">${rotulo.texto}</b><span class="num">${resultado.vantagem >= 99 ? "imune" : resultado.vantagem < 0.1 ? "<0,1×" : `${resultado.vantagem.toFixed(1).replace(".", ",")}×`}</span></div>
+        </div>`;
+    };
+
+    return `
+      <div class="alvo-contra">
+        <div class="retrato">${F.urlSprite(especieAlvo.pokeId) ? `<img src="${F.urlSprite(especieAlvo.pokeId)}" alt="" referrerpolicy="no-referrer">` : ""}</div>
+        <div>
+          <div class="nome">${esc(especieAlvo.name)}</div>
+          <div class="sub">${Cartao.htmlTipos([especieAlvo.type1, especieAlvo.type2].filter(Boolean))}${especieAlvo.huntLevel ? `<span>hunt Nv ${especieAlvo.huntLevel}</span>` : ""}</div>
+          <div class="fraquezas" style="margin-top:6px"><em>Fraco a</em>${[...fraq.x4.map(t => `<span class="mini-tipo x4" style="background:${Cartao.corTipo(t)}">${esc(F.nomesTipos[t])} 4×</span>`), ...fraq.x2.map(t => `<span class="mini-tipo" style="background:${Cartao.corTipo(t)}">${esc(F.nomesTipos[t])}</span>`)].join("") || '<span class="fraco">nada</span>'}</div>
+          <div class="fraquezas"><em>Ataca com</em>${tiposGolpes.map(t => `<span class="mini-tipo" style="background:${Cartao.corTipo(t)}">${esc(F.nomesTipos[t] || t)}</span>`).join("") || '<span class="fraco">—</span>'}</div>
+        </div>
+      </div>
+      <div class="secao">Seus melhores contra ele</div>
+      ${meus.length ? `<div class="lista">${meus.map(m => linhaResultado(m.x.analise.nome, m.especie, m.x.poke.shiny, m.resultado, `Nv ${m.x.poke.level}${m.x.poke.team ? " · time" : ""}`)).join("")}</div>` : `<div class="vazio" style="padding:14px">Abra a mochila no jogo para eu conhecer seus Pokémons.</div>`}
+      <div class="secao">Melhores espécies do jogo</div>
+      <div class="nota-lateral">Comparando todos no Nv 100, IV médio e qualidade 1,00.</div>
+      <div class="lista">${especies.map(e => linhaResultado(e.especie.name + (e.variantes.length ? ` (+${e.variantes.length})` : ""), e.especie, false, e.resultado, esc(nomesRaridade[e.especie.rarity] || ""))).join("")}</div>
+      <div class="explica" style="margin-top:12px">
+        Como funciona: no idle o Pokémon usa sozinho os golpes que já aprendeu, cada um no seu tempo de recarga. A PokeLupa soma o dano de todos eles
+        (poder × bônus de mesmo tipo 1,5 × efetividade × ataque/defesa) contra ${esc(especieAlvo.name)} e compara com o dano que ele devolve.
+        "3×" quer dizer que você aguenta 3 vezes mais tempo do que ele.
+        ${areaAlvo.length ? ` Golpes em área (como ${esc(areaAlvo[0].name)}, poder ${areaAlvo[0].power}) só saem com 2+ inimigos juntos e ficaram fora da conta.` : ""}
+      </div>
+    `;
   }
 
   function montarSessao() {
@@ -770,6 +942,89 @@
     `;
   }
 
+  const nomesClas = {
+    ironhard: "Ironhard", naturia: "Naturia", seavell: "Seavell", malefic: "Malefic", orebound: "Orebound",
+    psycraft: "Psycraft", raibolt: "Raibolt", volcanic: "Volcanic", gardestrike: "Gardestrike", wingeon: "Wingeon"
+  };
+  const nomesRaridade = { COMMON: "comum", UNCOMMON: "incomum", RARE: "raro", EPIC: "épico", LEGENDARY: "lendário", MYTHICAL: "mítico" };
+
+  function missaoCapturadaComoBanco() {
+    if (!infoCla || !infoCla.cla || !infoCla.tarefa || !infoCla.tarefa.rank || !Array.isArray(infoCla.tarefa.capturar)) return null;
+    const t = infoCla.tarefa;
+    return {
+      cla: infoCla.cla,
+      rank: Number(t.rank),
+      nome: t.nome || null,
+      nivel: t.nivel || null,
+      itens: t.itens.map(i => ({ id: i.id, nome: i.nome, qtd: i.precisa })),
+      capturar: (t.capturar || []).map(c => ({ id: c.id, nome: c.nome, qtd: c.precisa })),
+      derrotar: (t.derrotar || []).map(d => ({ tipo: d.tipo, qtd: d.precisa }))
+    };
+  }
+
+  function missaoFaltaNoBanco() {
+    const minha = missaoCapturadaComoBanco();
+    if (!minha) return null;
+    const noBanco = bancoClas && bancoClas.clas && bancoClas.clas[minha.cla] && bancoClas.clas[minha.cla][String(minha.rank)];
+    const resumo = m => JSON.stringify([m.itens.map(i => [i.id, i.qtd]), m.capturar.map(c => [c.id, c.qtd]), m.derrotar.map(d => [d.tipo, d.qtd])]);
+    if (noBanco && resumo(noBanco) === resumo(minha)) return null;
+    return minha;
+  }
+
+  function linkContribuir(missao) {
+    const titulo = `[missão] ${nomesClas[missao.cla] || missao.cla} rank ${missao.rank}`;
+    const corpoIssue = `Missão enviada pela extensão PokeLupa.\n\n\`\`\`json\n${JSON.stringify(missao, null, 2)}\n\`\`\`\n`;
+    return `https://github.com/SkymerLight/pokelupa/issues/new?title=${encodeURIComponent(titulo)}&body=${encodeURIComponent(corpoIssue)}`;
+  }
+
+  function htmlMissao(rank, missao, destaque) {
+    const partes = [];
+    for (const i of missao.itens || []) {
+      const item = dados.itens.get(i.id);
+      const tem = quantidadeNaMochila(i.id);
+      partes.push(`<div class="req"><img src="${esc(item ? urlIconeItem(item) : "")}" alt=""><span>${esc(i.nome)}</span><b class="num" style="color:${tem >= i.qtd ? "var(--verde)" : "var(--texto)"}">${F.formatarCurto(Math.min(tem, i.qtd))}/${F.formatarCurto(i.qtd)}</b></div>`);
+    }
+    for (const c of missao.capturar || []) partes.push(`<div class="req"><span class="req-ico">🎯</span><span>Capturar ${esc(c.nome)}</span><b class="num">${c.qtd}</b></div>`);
+    for (const d of missao.derrotar || []) partes.push(`<div class="req"><span class="mini-tipo" style="background:${Cartao.corTipo(d.tipo)}">${esc(F.nomesTipos[d.tipo] || d.tipo)}</span><span>Derrotar</span><b class="num">${F.formatarCurto(d.qtd)}</b></div>`);
+    return `
+      <div class="missao ${destaque ? "atual" : ""}">
+        <div class="missao-topo"><b>Rank ${rank}${missao.nome ? ` · ${esc(missao.nome)}` : ""}</b><span>${missao.nivel ? `Nv ${missao.nivel}+` : ""}${destaque ? " · seu próximo" : ""}</span></div>
+        ${partes.join("") || '<div class="fraco" style="font-size:11.5px">Sem requisitos de item.</div>'}
+      </div>`;
+  }
+
+  function htmlSecaoCla() {
+    const meuCla = infoCla && infoCla.cla;
+    const clasBanco = (bancoClas && bancoClas.clas) || {};
+    const claVisto = visao.claVisto || meuCla || Object.keys(clasBanco)[0] || "psycraft";
+    const ranksBanco = clasBanco[claVisto] || {};
+    const minha = missaoCapturadaComoBanco();
+    const ranks = {};
+    for (const r in ranksBanco) ranks[r] = ranksBanco[r];
+    if (minha && minha.cla === claVisto && !ranks[String(minha.rank)]) ranks[String(minha.rank)] = minha;
+    const faltando = missaoFaltaNoBanco();
+    const numeros = Object.keys(ranks).map(Number).sort((a, b) => a - b);
+    const rankAtual = infoCla && infoCla.cla === claVisto && infoCla.tarefa ? Number(infoCla.tarefa.rank) : null;
+    const conhecidos = Object.keys(clasBanco).reduce((s, c) => s + Object.keys(clasBanco[c]).length, 0);
+    return `
+      <div class="ferramentas" style="margin-top:0">
+        <select class="busca" data-campo="claVisto" style="flex:1">
+          ${Object.keys(nomesClas).map(c => `<option value="${c}" ${c === claVisto ? "selected" : ""}>${nomesClas[c]}${c === meuCla ? " (seu)" : ""} · ${Object.keys(clasBanco[c] || {}).length}/4 ranks</option>`).join("")}
+        </select>
+      </div>
+      ${meuCla ? "" : `<div class="nota-lateral">Abra a janela de <b>Clãs</b> no jogo uma vez para a PokeLupa saber seu clã e sua próxima missão.</div>`}
+      ${numeros.length ? numeros.map(r => htmlMissao(r, ranks[r], r === rankAtual)).join("") : `<div class="vazio" style="padding:14px">Ninguém enviou as missões de ${esc(nomesClas[claVisto])} ainda.</div>`}
+      ${meuCla === claVisto ? `<div class="alternar" style="border:0;padding-top:6px"><div><b>Guardar itens dos próximos ranks</b><span>Além do próximo rank, reserva os itens dos ranks seguintes que estão no banco.</span></div><button class="chave ${reservasUsuario.proximosRanks ? "ligada" : ""}" data-reserva-alternar="proximosRanks"></button></div>` : ""}
+      ${faltando ? `
+        <div class="contribuir">
+          <b>Sua missão de ${esc(nomesClas[faltando.cla])} rank ${faltando.rank} ainda não está no banco</b>
+          <span>Mande para todo mundo ver os itens desse rank. Abre uma página do GitHub com tudo preenchido; é só clicar em "Create". Vai só a missão, nada da sua conta.</span>
+          <a class="botao" href="${esc(linkContribuir(faltando))}" target="_blank" rel="noopener">Enviar missão</a>
+        </div>` : ""}
+      <div class="nota-lateral">O jogo só mostra a missão do seu próximo rank, então o banco é montado por quem usa a PokeLupa. ${conhecidos} missões conhecidas até agora.</div>
+    `;
+  }
+
   function htmlLinhaReserva(item, qtd, detalhe, tem) {
     if (!item) return "";
     const completo = tem !== undefined && tem >= qtd;
@@ -807,11 +1062,8 @@
     corpo.innerHTML = `
       <div class="explica">Itens daqui ficam marcados como <b>não vender</b>: saem do valor da mochila e ganham um aviso dourado na Loja do Mark (fica vermelho se você marcar para vender).</div>
 
-      <div class="secao">Missão do clã</div>
-      ${tarefa ? `
-        <div class="nota-lateral">${esc(infoCla.cla ? infoCla.cla[0].toUpperCase() + infoCla.cla.slice(1) : "Clã")} · próximo rank ${esc(tarefa.nome || tarefa.rank || "")} · lido ${tempoRelativo(infoCla.em)}</div>
-        <div class="lista">${tarefa.itens.length ? tarefa.itens.map(i => htmlLinhaReserva(dados.itens.get(i.id) || { name: i.nome, icon: "" }, i.precisa, "entregar no clã", quantidadeNaMochila(i.id))).join("") : `<div class="vazio" style="padding:14px">Esse rank não pede itens.</div>`}</div>
-      ` : `<div class="vazio" style="padding:16px">Abra a janela de <b>Clãs</b> no jogo uma vez. A PokeLupa lê a missão do seu próximo rank sozinha.</div>`}
+      <div class="secao">Missões do clã</div>
+      ${htmlSecaoCla()}
 
       <div class="secao">Craft de berries</div>
       ${receitas ? `
@@ -882,7 +1134,7 @@
     atualizarStatus();
     if (!visao.painelAberto) return;
     const rolagem = corpo.scrollTop;
-    ({ mochila: montarMochila, pokes: montarPokes, sessao: montarSessao, reservas: montarReservas, ajustes: montarAjustes }[visao.aba])();
+    ({ mochila: montarMochila, pokes: montarPokes, sessao: montarSessao, reservas: montarReservas, contra: montarContra, ajustes: montarAjustes }[visao.aba])();
     if (!forcar) corpo.scrollTop = rolagem;
   }
 
@@ -994,6 +1246,15 @@
       aoMudarDados("craft");
       return;
     }
+    if (tipo === "mercadoPokes") {
+      const porId = new Map(pokesMercado.map(poke => [poke.id, poke]));
+      for (const poke of carga) porId.set(poke.id, poke);
+      pokesMercado = [...porId.values()].slice(-600);
+      pokesMercadoEm = Date.now();
+      gravar(chaves.pokesMercado, { lista: pokesMercado, em: pokesMercadoEm });
+      if (visao.aba === "pokes" && visao.fontePokes === "mercado") renderizar(false);
+      return;
+    }
     if (tipo === "receitas") {
       receitas = carga;
       gravar(chaves.receitas, receitas);
@@ -1012,8 +1273,21 @@
   });
 
   camada.addEventListener("click", evento => {
-    const alvo = evento.target.closest("[data-acao],[data-aba],[data-categoria],[data-filtro],[data-alternar],[data-guardar],[data-ignorar],[data-berry],[data-faixa],[data-poke]");
+    const alvo = evento.target.closest("[data-acao],[data-aba],[data-categoria],[data-filtro],[data-alternar],[data-guardar],[data-ignorar],[data-berry],[data-faixa],[data-fonte],[data-reserva-alternar],[data-poke]");
     if (!alvo) return;
+    if (alvo.dataset.fonte) {
+      visao.fontePokes = alvo.dataset.fonte;
+      visao.filtroPokes = "todos";
+      if (visao.fontePokes === "meus" && ["preco", "custo"].includes(visao.ordemPokes)) visao.ordemPokes = "nota";
+      renderizar(true);
+      return;
+    }
+    if (alvo.dataset.reservaAlternar) {
+      const chave = alvo.dataset.reservaAlternar;
+      reservasUsuario[chave] = !reservasUsuario[chave];
+      salvarReservas();
+      return;
+    }
     if (alvo.dataset.guardar || alvo.dataset.ignorar) {
       const lista = alvo.dataset.guardar ? reservasUsuario.guardar : reservasUsuario.ignorar;
       const id = alvo.dataset.guardar || alvo.dataset.ignorar;
@@ -1091,6 +1365,18 @@
         renderizar(false);
         salvarResumo();
         break;
+      case "limparFiltros":
+        visao.buscaPokes = "";
+        visao.faixasPokes = new Set();
+        visao.ivMinPokes = visao.ivMaxPokes = visao.qualMinPokes = visao.qualMaxPokes = "";
+        visao.filtroPokes = "todos";
+        visao.ordemInvertida = false;
+        renderizar(false);
+        break;
+      case "inverterOrdem":
+        visao.ordemInvertida = !visao.ordemInvertida;
+        renderizar(false);
+        break;
       case "berriesAutomaticas":
         reservasUsuario.berries = {};
         reservasUsuario.craftAutomatico = true;
@@ -1107,7 +1393,8 @@
         posicionarLancador();
         break;
       case "testarShiny":
-        registrarShiny({ nome: "Pikachu (teste)", nivel: 42 });
+        if (ajustes.alertaShiny) avisar("Pikachu apareceu! (teste)", "É assim que o alerta aparece. Não conta na sessão.");
+        if (ajustes.somShiny) tocarSino();
         break;
     }
   });
@@ -1132,7 +1419,12 @@
     } else if (campo.dataset.campo === "ordemPokes") {
       visao.ordemPokes = campo.value;
       desenharListaPokes();
-    } else if (campo.dataset.campo === "ivMinPokes" || campo.dataset.campo === "ivMaxPokes") {
+    } else if (campo.dataset.campo === "buscaContra") {
+      visao.buscaContra = campo.value;
+      const especie = dados.especiesPorNome.get(campo.value.trim().toLowerCase());
+      const saida = corpo.querySelector('[data-ref="resultadoContra"]');
+      if (saida && (especie || !campo.value.trim())) saida.innerHTML = especie ? htmlResultadoContra(especie) : "";
+    } else if (["ivMinPokes", "ivMaxPokes", "qualMinPokes", "qualMaxPokes"].includes(campo.dataset.campo)) {
       visao[campo.dataset.campo] = campo.value;
       desenharListaPokes();
     } else if (campo.dataset.campo === "unidadesCraft") {
@@ -1143,6 +1435,11 @@
     }
   });
   camada.addEventListener("change", evento => {
+    if (evento.target.dataset.campo === "claVisto") {
+      visao.claVisto = evento.target.value;
+      renderizar(false);
+      return;
+    }
     if (evento.target.dataset.campo === "ordemPokes") {
       visao.ordemPokes = evento.target.value;
       desenharListaPokes();
@@ -1229,6 +1526,11 @@
     infoCla = claSalvo || null;
     receitas = receitasSalvas || null;
     craftLiberadas = Array.isArray(craftSalvo) ? craftSalvo : [];
+    const mercadoPokesSalvo = await ler(chaves.pokesMercado);
+    if (mercadoPokesSalvo && Date.now() - (mercadoPokesSalvo.em || 0) < 24 * 60 * 60 * 1000) {
+      pokesMercado = mercadoPokesSalvo.lista || [];
+      pokesMercadoEm = mercadoPokesSalvo.em || 0;
+    }
     ajustes = { ...ajustesPadrao, ...(ajustesSalvos || {}) };
     precosMercado = mercadoSalvo || {};
     sessao = sessaoSalva || null;
@@ -1238,5 +1540,6 @@
     await carregarCatalogo();
     pedirAoJogo("pedirEstado");
     verificarVersao();
+    carregarBancoClas();
   })();
 })();

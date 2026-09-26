@@ -1,0 +1,47 @@
+name: Receber missão de clã
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: missoes
+  cancel-in-progress: false
+
+jobs:
+  registrar:
+    if: startsWith(github.event.issue.title, '[missão]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validar e salvar
+        env:
+          CORPO_ISSUE: ${{ github.event.issue.body }}
+        run: node ferramentas/receber-missao.mjs
+      - name: Commit
+        env:
+          NUMERO: ${{ github.event.issue.number }}
+        run: |
+          git config user.name "pokelupa-bot"
+          git config user.email "pokelupa-bot@users.noreply.github.com"
+          git add dados/clas.json
+          if git diff --cached --quiet; then
+            echo "Nada novo."
+          else
+            git commit -m "Missão de clã recebida (issue #$NUMERO)"
+            git pull --rebase
+            git push
+          fi
+      - name: Responder e fechar
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment ${{ github.event.issue.number }} --repo ${{ github.repository }} --body "Valeu! Missão registrada no banco da PokeLupa. Em alguns minutos todo mundo recebe."
+          gh issue close ${{ github.event.issue.number }} --repo ${{ github.repository }}

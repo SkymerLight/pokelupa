@@ -45,7 +45,7 @@
       const motivo = poke.isDitto ? "Ditto transformado copia os atributos de outro Pokémon, então não dá para separar o IV de cada um." : "Os atributos não batem com a espécie base (forma especial ou bônus ativo).";
       blocoAtributos = `${statsSimples}<div class="aviso-barras">${motivo} A nota usa o <b>IV total</b> e a <b>qualidade</b>, que continuam certos.</div>`;
     } else if (larguraMedia > 5) {
-      blocoAtributos = `${statsSimples}<div class="aviso-barras">No <b>Nv ${a.nivel}</b> os atributos ainda são pequenos e vários IVs dão o mesmo número. O IV de cada atributo fica confiável a partir do <b>Nv 30</b> e exato perto do <b>Nv 50</b>. O IV total (${a.ivTotal ?? "?"}) e a nota já estão certos.</div>`;
+      blocoAtributos = `${statsSimples}<div class="aviso-barras">No <b>Nv ${a.nivel}</b> os atributos ainda são pequenos e vários IVs dão o mesmo número. O IV de cada atributo fica confiável a partir do <b>Nv 30</b> e exato perto do <b>Nv 50</b>.</div>`;
     }
 
     const fraq = F.fraquezas(a.tipos[0], a.tipos[1]);

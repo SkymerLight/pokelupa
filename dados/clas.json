@@ -1,0 +1,40 @@
+{
+  "atualizadoEm": "2026-09-26",
+  "clas": {
+    "psycraft": {
+      "2": {
+        "nome": "Brain",
+        "nivel": 90,
+        "itens": [
+          {
+            "id": 110,
+            "nome": "Rubber Ball",
+            "qtd": 20
+          },
+          {
+            "id": 44,
+            "nome": "Enchanted Gem",
+            "qtd": 20
+          }
+        ],
+        "capturar": [
+          {
+            "id": 36,
+            "nome": "Clefable",
+            "qtd": 1
+          }
+        ],
+        "derrotar": [
+          {
+            "tipo": "POISON",
+            "qtd": 125
+          },
+          {
+            "tipo": "FIGHTING",
+            "qtd": 125
+          }
+        ]
+      }
+    }
+  }
+}

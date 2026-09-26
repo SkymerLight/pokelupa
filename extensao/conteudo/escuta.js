@@ -163,9 +163,51 @@
       tarefa: tarefa ? {
         rank: tarefa.rank ?? null,
         nome: tarefa.name || null,
-        itens: (tarefa.items || []).map(i => ({ id: i.itemId, nome: i.name, precisa: Number(i.need) || 0, tem: Number(i.have) || 0 }))
+        nivel: tarefa.level ?? null,
+        itens: (tarefa.items || []).map(i => ({ id: i.itemId, nome: i.name, precisa: Number(i.need) || 0, tem: Number(i.have) || 0 })),
+        capturar: (tarefa.caught || []).map(c => ({ id: c.speciesId, nome: c.name, precisa: Number(c.need) || 0, tem: Number(c.have) || 0 })),
+        derrotar: (tarefa.kills || []).map(k => ({ tipo: k.type, precisa: Number(k.need) || 0, tem: Number(k.have) || 0 }))
       } : null
     });
+  }
+
+  function guardarPokesDoMercado(dados) {
+    const anuncios = dados && Array.isArray(dados.listings) ? dados.listings : [];
+    const lista = anuncios.filter(a => a && typeof a.quality === "number").map(a => ({
+      id: a.id,
+      name: a.name,
+      speciesId: a.speciesId,
+      level: a.level,
+      shiny: !!a.shiny,
+      quality: a.quality,
+      ivTotal: a.ivTotal,
+      power: a.power,
+      stats: a.stats ? { ...a.stats } : null,
+      type1: a.type1,
+      type2: a.type2,
+      price: Number(a.price) || 0,
+      seller: a.seller || a.sellerName || null
+    }));
+    if (lista.length) enviarParaPainel("mercadoPokes", lista);
+  }
+
+  function conflitosDeVenda(corpo) {
+    let pedido;
+    try {
+      pedido = typeof corpo === "string" ? JSON.parse(corpo) : null;
+    } catch (erro) {
+      return [];
+    }
+    const itens = pedido && Array.isArray(pedido.items) ? pedido.items : [];
+    const conflitos = [];
+    for (const venda of itens) {
+      const bloqueio = marcacoes.bloqueios[venda.itemId];
+      if (!bloqueio) continue;
+      const tenho = (estado.inventario || []).find(e => e.itemId === venda.itemId)?.quantity ?? 0;
+      const livre = bloqueio.tudo ? 0 : Math.max(0, tenho - bloqueio.qtd);
+      if ((Number(venda.qty) || 0) > livre) conflitos.push(`• ${bloqueio.nome}: vendendo ${venda.qty}, ${bloqueio.tudo ? "marcado para guardar" : `reservado ${bloqueio.qtd} (${bloqueio.motivo})`}`);
+    }
+    return conflitos;
   }
 
   function guardarCraft(dados) {
@@ -213,12 +255,23 @@
 
   if (typeof fetchOriginal === "function") {
     window.fetch = function (...argumentos) {
+      try {
+        const destino = typeof argumentos[0] === "string" ? argumentos[0] : (argumentos[0] && argumentos[0].url) || "";
+        if (destino.includes("/api/game/shop/sell") && argumentos[1] && argumentos[1].body) {
+          const conflitos = conflitosDeVenda(argumentos[1].body);
+          if (conflitos.length && !window.confirm(`PokeLupa: esta venda inclui itens que você reservou.\n\n${conflitos.join("\n")}\n\nVender mesmo assim?`)) {
+            return Promise.reject(new Error("Venda cancelada pela PokeLupa (itens reservados)"));
+          }
+        }
+      } catch (erro) {}
       const resposta = fetchOriginal.apply(this, argumentos);
       try {
         const alvo = typeof argumentos[0] === "string" ? argumentos[0] : (argumentos[0] && argumentos[0].url) || "";
         const metodo = String((argumentos[1] && argumentos[1].method) || "GET").toUpperCase();
         if (alvo.includes("/api/game/market?") && alvo.includes("category=")) {
           resposta.then(r => r.clone().json()).then(guardarPrecosMercado).catch(() => {});
+        } else if (alvo.includes("/api/game/market?") && alvo.includes("browse=pokemon")) {
+          resposta.then(r => r.clone().json()).then(guardarPokesDoMercado).catch(() => {});
         } else if (/\/api\/game\/clans(\?|$|\/rankup|\/skip)/.test(alvo)) {
           resposta.then(r => r.clone().json()).then(guardarCla).catch(() => {});
         } else if (/\/api\/game\/professions\/craft(\?|$)/.test(alvo) && metodo === "GET") {
@@ -337,7 +390,7 @@
     ultimoElemento = null;
   });
 
-  let marcacoes = { reservas: {}, notas: {} };
+  let marcacoes = { reservas: {}, notas: {}, bloqueios: {} };
   let varreduraPendente = false;
 
   function colocarEstiloDeMarcas() {
@@ -396,6 +449,20 @@
     setTimeout(marcarLinhas, 120);
   }
 
+  document.addEventListener("click", evento => {
+    const caixa = evento.target instanceof Element ? evento.target.closest(".mks-srow") : null;
+    if (!caixa) return;
+    const marcador = caixa.querySelector("input.mks-check");
+    const fibra = acharFibra(caixa);
+    const chave = fibra && typeof fibra.key === "string" ? fibra.key.match(/^s-(\d+)$/) : null;
+    const bloqueio = chave ? marcacoes.bloqueios[chave[1]] : null;
+    if (!bloqueio || !bloqueio.tudo || !marcador || marcador.checked) return;
+    if (!evento.target.closest("label, input")) return;
+    evento.preventDefault();
+    evento.stopPropagation();
+    caixa.animate([{ transform: "translateX(0)" }, { transform: "translateX(-5px)" }, { transform: "translateX(5px)" }, { transform: "translateX(0)" }], { duration: 260 });
+  }, true);
+
   new MutationObserver(mudancas => {
     for (const mudanca of mudancas) {
       if (mudanca.addedNodes.length || mudanca.type === "attributes") {
@@ -409,7 +476,7 @@
     if (evento.source !== window || !evento.data || evento.data.marca !== marcaPedido) return;
     const pedido = evento.data;
     if (pedido.tipo === "marcacoes") {
-      marcacoes = { reservas: pedido.dados?.reservas || {}, notas: pedido.dados?.notas || {} };
+      marcacoes = { reservas: pedido.dados?.reservas || {}, notas: pedido.dados?.notas || {}, bloqueios: pedido.dados?.bloqueios || {} };
       agendarMarcacao();
     } else if (pedido.tipo === "pedirEstado") {
       enviarParaPainel("estado", { ...estado, motivo: "pedido" });
