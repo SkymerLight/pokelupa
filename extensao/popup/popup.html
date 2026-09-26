@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>PokeLupa</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="../icones/icone48.png" alt="">
+    <div>
+      <h1>Poke<span>Lupa</span></h1>
+      <p id="quando">Sem leituras ainda</p>
+    </div>
+  </header>
+
+  <section class="destaque">
+    <span class="rotulo">Valor da mochila</span>
+    <strong id="valorMochila">—</strong>
+    <small id="detalheMochila">Abra o jogo para ler sua mochila.</small>
+  </section>
+
+  <section class="grade">
+    <div class="quadro"><span>Loot/hora</span><b id="porHora">—</b></div>
+    <div class="quadro"><span>Sessão</span><b id="ganhoSessao">—</b></div>
+    <div class="quadro"><span>Pokémons</span><b id="qtdPokes">—</b></div>
+    <div class="quadro"><span>Shinies vistos</span><b id="qtdShinies">—</b></div>
+  </section>
+
+  <section id="topItens" class="top"></section>
+
+  <div class="botoes">
+    <button id="abrirPainel" class="botao">Abrir painel no jogo</button>
+    <button id="abrirJogo" class="botao secundario">Ir para o jogo</button>
+  </div>
+
+  <section class="ajustes">
+    <label><input type="checkbox" data-ajuste="cartaoAtivo"> Cartão ao passar o mouse</label>
+    <label><input type="checkbox" data-ajuste="alertaShiny"> Alerta de shiny</label>
+    <label><input type="checkbox" data-ajuste="somShiny"> Som do alerta</label>
+  </section>
+
+  <footer><span id="versao"></span><a id="site" href="#" target="_blank">site &amp; analisador por print</a></footer>
+  <script src="popup.js"></script>
+</body>
+</html>
