@@ -43,10 +43,10 @@
   ];
 
   const notas = [
-    { minimo: 90, letra: "S", rotulo: "Excepcional", cor: "#ffd166" },
-    { minimo: 75, letra: "A", rotulo: "Ótimo", cor: "#4ade80" },
-    { minimo: 55, letra: "B", rotulo: "Bom", cor: "#60a5fa" },
-    { minimo: 35, letra: "C", rotulo: "Mediano", cor: "#fbbf24" },
+    { minimo: 75, letra: "S", rotulo: "Excepcional", cor: "#ffd166" },
+    { minimo: 60, letra: "A", rotulo: "Ótimo", cor: "#4ade80" },
+    { minimo: 45, letra: "B", rotulo: "Bom", cor: "#60a5fa" },
+    { minimo: 33, letra: "C", rotulo: "Mediano", cor: "#fbbf24" },
     { minimo: -Infinity, letra: "D", rotulo: "Fraco", cor: "#f87171" }
   ];
 
@@ -274,6 +274,27 @@
     return maximo ? Math.round(soma / maximo * 100) : null;
   }
 
+  function ivsParaCalculo(estimativa, ivTotal) {
+    const saida = {};
+    if (estimativa && estimativa.coerente) {
+      for (const chave of chavesStats) saida[chave] = (estimativa.faixas[chave].min + estimativa.faixas[chave].max) / 2;
+      return saida;
+    }
+    const media = typeof ivTotal === "number" ? ivTotal / 6 : 16.5;
+    for (const chave of chavesStats) saida[chave] = media;
+    return saida;
+  }
+
+  function poderNoNivel(bases, ivs, qualidade, nivel) {
+    return calcularPoder(calcularStats(bases, ivs, nivel, qualidade), qualidade);
+  }
+
+  function potencialDePoder(bases, ivs, qualidade) {
+    const perfeito = { hp: ivMaximo, atk: ivMaximo, def: ivMaximo, spAtk: ivMaximo, spDef: ivMaximo, speed: ivMaximo };
+    const maximo = poderNoNivel(bases, perfeito, tetoSelvagem, 100);
+    return maximo ? poderNoNivel(bases, ivs, qualidade, 100) / maximo * 100 : null;
+  }
+
   const distribuicaoIv = (function () {
     let atual = [1];
     for (let dado = 0; dado < 6; dado++) {
@@ -362,9 +383,20 @@
     const qualidadePercentil = qualidade ? percentilQualidade(qualidade) : null;
 
     let pontos = null;
-    if (ivPercentil !== null && qualidadePercentil !== null) pontos = 0.45 * ivPercentil + 0.55 * qualidadePercentil;
-    else if (ivPercentil !== null) pontos = ivPercentil;
-    else if (qualidadePercentil !== null) pontos = qualidadePercentil;
+    let potencial = null;
+    let poderNv100 = null;
+    if (bases && qualidade) {
+      const ivs = ivsParaCalculo(estimativa, ivTotal);
+      potencial = potencialDePoder(bases, ivs, qualidade);
+      poderNv100 = poderNoNivel(bases, ivs, qualidade, 100);
+      pontos = potencial;
+    } else if (ivPercentil !== null && qualidadePercentil !== null) {
+      pontos = 0.45 * ivPercentil + 0.55 * qualidadePercentil;
+    } else if (ivPercentil !== null) {
+      pontos = ivPercentil;
+    } else if (qualidadePercentil !== null) {
+      pontos = qualidadePercentil;
+    }
 
     const nota = pontos !== null ? notaPorPontos(pontos) : null;
     const faixa = qualidade ? faixaDaQualidade(qualidade) : null;
@@ -384,7 +416,7 @@
     if (poke.shiny) dicas.push({ tom: "ouro", texto: ivTotal !== null && ivTotal < 160 ? "Shiny, mas com IV abaixo do comum para shinies (costumam passar de 159)." : "Shiny: os IVs já nascem acima de 159 no total." });
     if (nota && nota.letra === "S") dicas.push({ tom: "bom", texto: "Exemplar de topo. Merece investimento." });
     else if (nota && nota.letra === "A") dicas.push({ tom: "bom", texto: "Muito acima da média das capturas." });
-    if (ivPercentil !== null && qualidadePercentil !== null && ivPercentil >= 85 && qualidadePercentil < 50) dicas.push({ tom: "info", texto: "IV excelente, mas a qualidade segura o poder final." });
+    if (ivPercentil !== null && qualidadePercentil !== null && ivPercentil >= 85 && qualidadePercentil < 50) dicas.push({ tom: "info", texto: "IV excelente, mas a qualidade baixa segura o poder: no jogo a qualidade pesa quase o dobro do IV." });
     if (ivPercentil !== null && qualidadePercentil !== null && qualidadePercentil >= 90 && ivPercentil < 35) dicas.push({ tom: "info", texto: "Qualidade alta com IV baixo. Bom, mas não o ideal." });
     if (nota && nota.letra === "D" && !poke.shiny && !poke.team) {
       const venda = poke.sellValue || (especie && especie.sellValue) || 0;
@@ -405,6 +437,8 @@
       ivPercentil,
       qualidadePercentil,
       pontos: pontos !== null ? Math.round(pontos) : null,
+      potencial: potencial !== null ? Math.round(potencial * 10) / 10 : null,
+      poderNv100,
       nota,
       poder,
       estimativa,
@@ -502,6 +536,8 @@
   }
 
   raiz.PokeLupaFormulas = {
+    potencialDePoder,
+    poderNoNivel,
     estimarIvsAproximado,
     melhorForma,
     perfilDeGolpes,

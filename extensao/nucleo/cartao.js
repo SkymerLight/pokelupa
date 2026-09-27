@@ -73,12 +73,12 @@
           <div class="nome">${esc(a.nome)}${poke.shiny ? '<span class="estrela">✦</span>' : ""}</div>
           <div class="sub"><span class="num">Nv ${a.nivel || "?"}</span>${htmlTipos(a.tipos)}${poke.isDitto && especie && especie.pokeId !== 132 ? `<span class="fraco">virou ${esc(especie.name)}</span>` : ""}</div>
         </div>
-        <div class="selo" style="--pct:${pontos};--cor-selo:${nota.cor}" title="${esc(nota.rotulo)}: ${pontos}/100"><b>${nota.letra}</b><small class="num">${a.pontos ?? ""}</small></div>
+        <div class="selo" style="--pct:${pontos};--cor-selo:${nota.cor}" title="${esc(nota.rotulo)}: ${a.potencial !== null ? `potencial ${a.potencial}% do melhor ${especie ? esc(especie.name) : "exemplar"} possível` : `${pontos}/100`}"><b>${nota.letra}</b><small class="num">${a.pontos ?? ""}</small></div>
       </div>
       <div class="metricas">
         <div class="metrica"><span>Qualidade</span><b style="color:${faixa.cor}">${esc(faixa.rotulo)}</b><i class="num">×${a.qualidade ? a.qualidade.toFixed(2) : "?"} · ${a.qualidade > F.tetoSelvagem ? "além do teto" : melhorQue(a.qualidadePercentil)}</i></div>
         <div class="metrica"><span>IV total</span><b class="num" title="${a.ivTotalCalculado ? "Calculado a partir dos atributos" : ""}">${a.ivTotalCalculado ? "≈" : ""}${a.ivTotal ?? "?"}<span class="fraco">/192</span></b><i>${melhorQue(a.ivPercentil)}</i></div>
-        <div class="metrica"><span>Poder</span><b class="num">${a.poder !== null ? F.formatarCurto(a.poder) : "?"}</b><i>${esc(nota.rotulo)}</i></div>
+        <div class="metrica"><span>Poder</span><b class="num">${a.poder !== null ? F.formatarCurto(a.poder) : "?"}</b><i>${a.potencial !== null ? `potencial ${Math.round(a.potencial)}%` : esc(nota.rotulo)}</i></div>
       </div>
       ${blocoAtributos}
       ${chipsFraqueza || chipsImune ? `<div class="fraquezas">${chipsFraqueza ? `<em>Fraco a</em>${chipsFraqueza}` : ""}${chipsImune ? `<em style="margin-left:6px">Imune</em>${chipsImune}` : ""}</div>` : ""}

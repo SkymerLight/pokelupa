@@ -99,15 +99,15 @@
           <div id="cartaoResultado" class="hospede-cartao"></div>
           <div class="explicacao">
             <h3>Como a nota é calculada</h3>
-            <p>O jogo sorteia cada IV entre 1 e 32 e a qualidade segue uma tabela de chances (a maioria sai entre 1,00 e 1,10; acima de 1,80 só com breeding, shiny ou evento). A PokeLupa inverte a fórmula de atributos do jogo para achar o IV de cada stat e mostra em que posição o seu Pokémon fica entre todas as capturas possíveis.</p>
+            <p>O jogo sorteia cada IV entre 1 e 32 e a qualidade segue uma tabela de chances (a maioria sai entre 1,00 e 1,10; acima de 1,80 só com breeding, shiny ou evento). A PokeLupa inverte a fórmula de atributos do jogo para achar o IV de cada stat. A nota é o <b>potencial</b>: o poder que ele teria no Nv 100 em % do melhor exemplar possível da mesma espécie (IV 192 e qualidade 1,80). Fonte: <a href="https://poke.idleworld.online/pokepedia/systems/power" target="_blank" rel="noopener">Pokepédia: Power</a>.</p>
             <code>stat = nível/100 × (base + 2·IV) × qualidade<sup>exp</sup></code>
-            <p class="miudo">exp = 0,95 para HP e Velocidade, 0,8 para os demais. Nota = 45% posição do IV + 55% posição da qualidade.</p>
+            <p class="miudo">exp = 0,95 para HP e Velocidade, 0,8 para os demais. Poder = soma dos stats × qualidade: a qualidade entra duas vezes, por isso pesa quase o dobro do IV.</p>
             <div class="escala">
-              <span style="--c:#ffd166">S ≥ 90</span>
-              <span style="--c:#4ade80">A ≥ 75</span>
-              <span style="--c:#60a5fa">B ≥ 55</span>
-              <span style="--c:#fbbf24">C ≥ 35</span>
-              <span style="--c:#f87171">D &lt; 35</span>
+              <span style="--c:#ffd166">S ≥ 75%</span>
+              <span style="--c:#4ade80">A ≥ 60%</span>
+              <span style="--c:#60a5fa">B ≥ 45%</span>
+              <span style="--c:#fbbf24">C ≥ 33%</span>
+              <span style="--c:#f87171">D &lt; 33%</span>
             </div>
           </div>
         </div>
@@ -245,13 +245,13 @@
 
         <article class="explicacao-card">
           <h3>4. A nota de S a D</h3>
-          <p>Junta a posição do IV total (45%) com a posição da qualidade (55%) entre todas as capturas possíveis. A qualidade pesa mais porque multiplica todos os atributos e ainda o poder.</p>
+          <p>É o <b>potencial</b>: o poder que o exemplar teria no Nv 100, em % do melhor possível da mesma espécie (IV 192, qualidade 1,80). Como a qualidade entra duas vezes no poder, um Lendário com IV menor passa um Épico com IV maior, igual o jogo explica em <a href="https://poke.idleworld.online/pokepedia/systems/power" target="_blank" rel="noopener">Pokepédia: Power</a>.</p>
           <table class="tabela-notas">
-            <tr><td><b style="color:#ffd166">S</b></td><td>90+</td><td>Excepcional</td></tr>
-            <tr><td><b style="color:#4ade80">A</b></td><td>75+</td><td>Ótimo</td></tr>
-            <tr><td><b style="color:#60a5fa">B</b></td><td>55+</td><td>Bom</td></tr>
-            <tr><td><b style="color:#fbbf24">C</b></td><td>35+</td><td>Mediano</td></tr>
-            <tr><td><b style="color:#f87171">D</b></td><td>&lt; 35</td><td>Fraco</td></tr>
+            <tr><td><b style="color:#ffd166">S</b></td><td>75%+</td><td>Excepcional · ~0,5% das capturas</td></tr>
+            <tr><td><b style="color:#4ade80">A</b></td><td>60%+</td><td>Ótimo · ~3%</td></tr>
+            <tr><td><b style="color:#60a5fa">B</b></td><td>45%+</td><td>Bom · ~15%</td></tr>
+            <tr><td><b style="color:#fbbf24">C</b></td><td>33%+</td><td>Mediano · metade de cima</td></tr>
+            <tr><td><b style="color:#f87171">D</b></td><td>&lt; 33%</td><td>Fraco</td></tr>
           </table>
         </article>
 

@@ -709,7 +709,7 @@
   const coresDeFaixa = { Fraca: "#9aa6b3", Comum: "#63d873", Incomum: "#7fd4ff", Rara: "#b06cff", "Épica": "#f0c040", "Lendária": "#ff8c3c", "Mítica": "#b36bff", "Anciã": "#d4a017", Divina: "#dbefff" };
 
   function pareceVendavel(x) {
-    return !x.poke.team && !x.poke.starter && !x.poke.shiny && !x.poke.locked && x.analise.nota && "CD".includes(x.analise.nota.letra);
+    return !x.poke.team && !x.poke.starter && !x.poke.shiny && !x.poke.locked && x.analise.nota && x.analise.nota.letra === "D";
   }
 
   function analisesDaFonte() {
@@ -760,7 +760,7 @@
         <input class="busca" data-campo="buscaPokes" list="pokelupa-especies" placeholder="Nome do Pokémon…" value="${esc(visao.buscaPokes)}">
         <datalist id="pokelupa-especies">${dados.nomesEspecies.map(n => `<option value="${esc(n)}">`).join("")}</datalist>
         <select class="busca" data-campo="ordemPokes">
-          ${[["nota", "Nota"], ["poder", "Poder"], ["iv", "IV"], ["qualidade", "Qualidade"], ["nivel", "Nível"], ...(mercado ? [["preco", "Preço"], ["custo", "Custo-benefício"]] : [])].map(([v, t]) => `<option value="${v}" ${visao.ordemPokes === v ? "selected" : ""}>${t}</option>`).join("")}
+          ${[["nota", "Nota (potencial)"], ["poder", "Poder agora"], ["poder100", "Poder no Nv 100"], ["iv", "IV"], ["qualidade", "Qualidade"], ["nivel", "Nível"], ...(mercado ? [["preco", "Preço"], ["custo", "Custo-benefício"]] : [])].map(([v, t]) => `<option value="${v}" ${visao.ordemPokes === v ? "selected" : ""}>${t}</option>`).join("")}
         </select>
         <button class="botao-icone" data-acao="inverterOrdem" title="${visao.ordemInvertida ? "Do pior para o melhor" : "Do melhor para o pior"}">${visao.ordemInvertida ? "↑" : "↓"}</button>
       </div>
@@ -796,6 +796,7 @@
     const ordens = {
       nota: x => x.analise.pontos ?? -1,
       poder: x => x.analise.poder ?? -1,
+      poder100: x => x.analise.poderNv100 ?? -1,
       iv: x => x.analise.ivTotal ?? -1,
       qualidade: x => x.analise.qualidade ?? -1,
       nivel: x => x.analise.nivel ?? -1,
@@ -1154,7 +1155,7 @@
       <div class="drops" style="font-size:12px;line-height:1.5">
         A PokeLupa só lê o que o jogo já manda para o seu navegador (mochila, Pokémons e catálogo). Nada é enviado para fora e nenhuma ação é feita por você.
         IVs por atributo são deduzidos da fórmula do jogo: <b>stat = nível/100 × (base + 2·IV) × qualidade^exp</b>, com exp 0,95 para HP/Vel e 0,8 para os outros.
-        A nota junta o quanto o IV e a qualidade são melhores que as capturas selvagens.
+        A nota é o potencial: o poder no Nv 100 em % do melhor exemplar possível da mesma espécie. A qualidade entra duas vezes no poder, por isso pesa quase o dobro do IV.
       </div>
     `;
   }

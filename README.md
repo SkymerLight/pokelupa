@@ -57,15 +57,17 @@ O próprio código do jogo define as regras, e a PokeLupa usa as mesmas:
 - Atributo final: `stat = round(nível/100 × (base + 2·IV) × qualidade^exp)`, com `exp = 0,95` para HP e Velocidade e `0,8` para os outros.
 - Poder: `round(soma dos stats × qualidade)`.
 
-Invertendo a fórmula dá para achar o IV exato de cada atributo (a partir do nível ~50 quase sempre sai exato; em nível baixo aparece a faixa possível). A nota junta **45%** da posição do IV e **55%** da posição da qualidade entre todas as capturas possíveis:
+Invertendo a fórmula dá para achar o IV exato de cada atributo (a partir do nível ~50 quase sempre sai exato; em nível baixo aparece a faixa possível). A nota é o **potencial**: o poder que o exemplar teria no Nv 100, em % do melhor possível da mesma espécie (IV 192 e qualidade 1,80). Como a qualidade entra duas vezes no poder, ela pesa quase o dobro do IV, e um Lendário com IV menor passa um Épico com IV maior, como o próprio jogo explica na [Pokepédia: Power](https://poke.idleworld.online/pokepedia/systems/power) e na [Pokepédia: Qualidade](https://poke.idleworld.online/pokepedia/systems/quality).
 
-| Nota | Pontos | |
+| Nota | Potencial | |
 |---|---|---|
-| **S** | 90+ | Excepcional |
-| **A** | 75+ | Ótimo |
-| **B** | 55+ | Bom |
-| **C** | 35+ | Mediano |
-| **D** | abaixo de 35 | Fraco |
+| **S** | 75%+ | Excepcional (~0,5% das capturas) |
+| **A** | 60%+ | Ótimo (~3%) |
+| **B** | 45%+ | Bom (~15%) |
+| **C** | 33%+ | Mediano |
+| **D** | abaixo de 33% | Fraco |
+
+Para comparar espécies diferentes, o Ranking também ordena por **Poder no Nv 100**.
 
 ## Segurança
 
