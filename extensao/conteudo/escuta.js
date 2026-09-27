@@ -144,9 +144,9 @@
     const anuncios = Array.isArray(dados.listings) ? dados.listings : [];
     const precos = {};
     for (const anuncio of anuncios) {
-      if (!anuncio || anuncio.kind === "pokemon" || !anuncio.name) continue;
-      const quantidade = Number(anuncio.quantity) || 1;
-      const unitario = Number(anuncio.unitPrice) || (Number(anuncio.price) || 0) / quantidade;
+      if (!anuncio || anuncio.kind === "pokemon" || !anuncio.name || anuncio.offerOnly) continue;
+      if (anuncio.currency && String(anuncio.currency).toUpperCase() !== "GOLD") continue;
+      const unitario = Number(anuncio.unitPrice) || Number(anuncio.price) || 0;
       if (!unitario) continue;
       const chave = String(anuncio.name).toLowerCase();
       if (!precos[chave] || unitario < precos[chave]) precos[chave] = unitario;
@@ -185,7 +185,8 @@
       stats: a.stats ? { ...a.stats } : null,
       type1: a.type1,
       type2: a.type2,
-      price: Number(a.price) || 0,
+      price: a.offerOnly || (a.currency && String(a.currency).toUpperCase() !== "GOLD") ? 0 : Number(a.price) || 0,
+      diamantes: a.currency && String(a.currency).toUpperCase() === "DIAMONDS" ? Number(a.price) || 0 : 0,
       seller: a.seller || a.sellerName || null
     }));
     if (lista.length) enviarParaPainel("mercadoPokes", lista);
@@ -319,7 +320,7 @@
           id: valor.itemId ?? valor.refId ?? valor.id,
           nome: valor.name || null,
           quantidade: Number(valor.quantity) || 1,
-          precoAnuncio: valor.kind === "item" && valor.price ? Number(valor.unitPrice) || Number(valor.price) / (Number(valor.quantity) || 1) : null
+          precoAnuncio: valor.kind === "item" && valor.price && (!valor.currency || String(valor.currency).toUpperCase() === "GOLD") ? Number(valor.unitPrice) || Number(valor.price) : null
         }
       };
     }

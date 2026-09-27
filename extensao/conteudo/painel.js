@@ -8,7 +8,7 @@
   const marcaPainel = "pokelupa:painel";
   const chaves = {
     ajustes: "pokelupa:ajustes",
-    mercado: "pokelupa:mercado",
+    mercado: "pokelupa:mercado2",
     sessao: "pokelupa:sessao",
     resumo: "pokelupa:resumo",
     shinies: "pokelupa:shinies",
@@ -570,6 +570,14 @@
     return false;
   }
 
+  function versaoInstalada() {
+    try {
+      return chrome.runtime.getManifest().version;
+    } catch (erro) {
+      return "0";
+    }
+  }
+
   function mostrarNovidade() {
     const faixa = ref("novidade");
     let atual = "0";
@@ -596,9 +604,9 @@
     } catch (erro) {}
   }
 
-  async function verificarVersao() {
+  async function verificarVersao(forcar) {
     const guardado = await ler(chaves.novidade);
-    if (guardado && Date.now() - (guardado.checadoEm || 0) < 3 * 60 * 60 * 1000) {
+    if (!forcar && guardado && Date.now() - (guardado.checadoEm || 0) < 10 * 60 * 1000) {
       novidade = guardado;
       mostrarNovidade();
       return;
@@ -608,7 +616,10 @@
       novidade = { versao: info.versao, resumo: info.resumo || "", checadoEm: Date.now() };
       gravar(chaves.novidade, novidade);
       mostrarNovidade();
-    } catch (erro) {}
+      return novidade;
+    } catch (erro) {
+      return null;
+    }
   }
 
   function atualizarStatus() {
@@ -831,7 +842,7 @@
       const chave = `${x.anuncio ? "m" : "p"}${poke.id ?? analise.nome + analise.nivel + posicao}`;
       const aberto = visao.pokeAberto === chave;
       const sprite = F.urlSprite(especie && (especie.spriteId || especie.pokeId), poke.shiny);
-      const extra = x.anuncio ? (poke.price ? ` · 💲${F.formatarCurto(poke.price)}` : "") : (poke.sellValue ? ` · Mark 💲${F.formatarCurto(poke.sellValue)}` : "");
+      const extra = x.anuncio ? (poke.price ? ` · 💲${F.formatarCurto(poke.price)}` : poke.diamantes ? ` · 💎${F.formatarCurto(poke.diamantes)}` : "") : (poke.sellValue ? ` · Mark 💲${F.formatarCurto(poke.sellValue)}` : "");
       return `
         <div class="item-linha poke-linha" data-poke="${esc(chave)}">
           <div class="icone poke">${sprite ? `<img src="${sprite}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}</div>
@@ -1146,6 +1157,15 @@
         <button class="botao secundario" data-acao="resetarLancador">Recentralizar botão</button>
         <button class="botao secundario" data-acao="testarShiny">Testar alerta</button>
       </div>
+      <div class="secao">Versão</div>
+      <div class="linhas">
+        <div class="linha"><span>Instalada</span><b class="num">${esc(versaoInstalada())}</b></div>
+        <div class="linha"><span>Mais nova no site</span><b class="num">${novidade ? esc(novidade.versao) : "—"}</b></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="botao" data-acao="verificarVersao">Verificar atualização</button>
+        <button class="botao secundario" data-acao="abrirAtualizador">Abrir atualizador</button>
+      </div>
       <div class="secao">Apoie o projeto</div>
       <div class="apoio-grande">
         <a class="botao pix" href="https://pixie.gg/skymerlight" target="_blank" rel="noopener">${svgPix} Doar com Pix</a>
@@ -1185,6 +1205,7 @@
 
   function abrirPainel(aberto) {
     visao.painelAberto = aberto ?? !visao.painelAberto;
+    if (visao.painelAberto) verificarVersao();
     if (visao.painelAberto) esconderCartao();
     renderizar(true);
   }
@@ -1405,6 +1426,14 @@
           avisar("Recarregue a página", "A extensão foi atualizada por fora; recarregue a aba do jogo.", "info");
         }
         break;
+      case "verificarVersao":
+        verificarVersao(true).then(info => {
+          if (!info) avisar("Sem conexão", "Não consegui falar com o site da PokeLupa.", "info");
+          else if (versaoMaior(info.versao, versaoInstalada())) avisar(`Versão ${info.versao} disponível`, "Clique em Atualizar agora no topo do painel.", "info");
+          else avisar("Tudo em dia", `Você já está na versão mais nova (${versaoInstalada()}).`, "info");
+          renderizar(false);
+        });
+        break;
       case "copiarDiscord":
         try {
           navigator.clipboard.writeText("Skymer#9220");
@@ -1564,6 +1593,10 @@
       }
     });
     chrome.storage.onChanged.addListener((mudancas, area) => {
+      if (area === "local" && mudancas[chaves.novidade] && mudancas[chaves.novidade].newValue) {
+        novidade = mudancas[chaves.novidade].newValue;
+        mostrarNovidade();
+      }
       if (area !== "local" || !mudancas[chaves.ajustes]) return;
       ajustes = { ...ajustesPadrao, ...(mudancas[chaves.ajustes].newValue || {}) };
       renderizar(false);

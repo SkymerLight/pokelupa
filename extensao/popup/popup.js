@@ -96,6 +96,11 @@ async function iniciar() {
   if (manifesto.homepage_url) $("site").href = manifesto.homepage_url;
 
   checarNovidade(manifesto.version);
+  $("verificar").addEventListener("click", async () => {
+    $("verificar").textContent = "verificando…";
+    await checarNovidade(manifesto.version);
+    $("verificar").textContent = $("novidade").hidden ? "já está na mais nova" : "tem versão nova ↑";
+  });
   $("copiarDiscord").addEventListener("click", async () => {
     try {
       await navigator.clipboard.writeText("Skymer#9220");
