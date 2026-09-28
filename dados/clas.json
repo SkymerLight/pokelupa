@@ -1,5 +1,5 @@
 {
-  "atualizadoEm": "2026-09-26",
+  "atualizadoEm": "2026-09-28",
   "clas": {
     "psycraft": {
       "2": {
@@ -32,6 +32,41 @@
           {
             "tipo": "FIGHTING",
             "qtd": 125
+          }
+        ]
+      }
+    },
+    "seavell": {
+      "3": {
+        "nome": "Waterfall",
+        "nivel": 100,
+        "itens": [
+          {
+            "id": 140,
+            "nome": "Water Gem",
+            "qtd": 30
+          },
+          {
+            "id": 123,
+            "nome": "Snowball",
+            "qtd": 30
+          }
+        ],
+        "capturar": [
+          {
+            "id": 9,
+            "nome": "Blastoise",
+            "qtd": 1
+          }
+        ],
+        "derrotar": [
+          {
+            "tipo": "FLYING",
+            "qtd": 250
+          },
+          {
+            "tipo": "ELECTRIC",
+            "qtd": 250
           }
         ]
       }
