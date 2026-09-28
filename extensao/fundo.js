@@ -1,5 +1,5 @@
 const chaveNovidade = "pokelupa:novidade";
-const intervaloMinutos = 30;
+const intervaloMinutos = 10;
 
 function versaoMaior(a, b) {
   const pa = String(a).split(".").map(Number);

@@ -341,6 +341,7 @@ select.busca option { background: var(--fundo-2); }
 .alvo-contra .nome { font-size: 17px; font-weight: 800; }
 .alvo-contra .sub { color: var(--texto-2); font-size: 11.5px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 3px; }
 .missao { border: 1px solid var(--borda); border-radius: 12px; padding: 9px 10px; margin-bottom: 6px; background: rgba(255,255,255,0.02); display: grid; gap: 5px; }
+.missao.faltando { border-style: dashed; opacity: .75; }
 .missao.atual { border-color: var(--borda-forte); background: rgba(231,194,106,0.06); }
 .missao-topo { display: flex; justify-content: space-between; font-size: 12px; }
 .missao-topo span { color: var(--texto-3); font-size: 11px; }

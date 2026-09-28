@@ -634,7 +634,7 @@
 
   async function verificarVersao(forcar) {
     const guardado = await ler(chaves.novidade);
-    if (!forcar && guardado && Date.now() - (guardado.checadoEm || 0) < 10 * 60 * 1000) {
+    if (!forcar && guardado && Date.now() - (guardado.checadoEm || 0) < 5 * 60 * 1000) {
       novidade = guardado;
       mostrarNovidade();
       return;
@@ -1090,8 +1090,8 @@
         </select>
       </div>
       ${meuCla ? "" : `<div class="nota-lateral">Abra a janela de <b>Clãs</b> no jogo uma vez para a PokeLupa saber seu clã e sua próxima missão.</div>`}
-      ${numeros.length ? numeros.map(r => htmlMissao(r, ranks[r], r === rankAtual)).join("") : `<div class="vazio" style="padding:14px">Ninguém enviou as missões de ${esc(nomesClas[claVisto])} ainda.</div>`}
-      ${meuCla === claVisto ? `<div class="alternar" style="border:0;padding-top:6px"><div><b>Guardar itens dos próximos ranks</b><span>Além do próximo rank, reserva os itens dos ranks seguintes que estão no banco.</span></div><button class="chave ${reservasUsuario.proximosRanks ? "ligada" : ""}" data-reserva-alternar="proximosRanks"></button></div>` : ""}
+      ${[2, 3, 4, 5].map(r => ranks[r] ? htmlMissao(r, ranks[r], r === rankAtual) : `<div class="missao faltando"><div class="missao-topo"><b>Rank ${r}</b><span>${r === rankAtual ? "seu próximo · " : ""}ninguém enviou ainda</span></div><div class="fraco" style="font-size:11.5px">Quem chegar nesse rank com a PokeLupa pode enviar pelo botão "Enviar missão".</div></div>`).join("")}
+      ${meuCla === claVisto ? `<div class="alternar" style="border:0;padding-top:6px"><div><b>Incluir os próximos ranks</b><span>Além do seu próximo rank, reserva (e trava, se a chave de cima estiver ligada) os itens dos ranks seguintes do seu clã que já estão no banco.</span></div><button class="chave ${reservasUsuario.proximosRanks ? "ligada" : ""}" data-reserva-alternar="proximosRanks"></button></div>` : `<div class="nota-lateral">Você está vendo ${esc(nomesClas[claVisto])}. Só os itens do <b>seu</b> clã são reservados e travados.</div>`}
       ${faltando ? `
         <div class="contribuir">
           <b>Sua missão de ${esc(nomesClas[faltando.cla])} rank ${faltando.rank} ainda não está no banco</b>
@@ -1637,7 +1637,11 @@
     });
   } catch (erro) {}
 
-  setInterval(() => verificarVersao(), 30 * 60 * 1000);
+  setInterval(() => verificarVersao(), 10 * 60 * 1000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") verificarVersao();
+  });
+  window.addEventListener("focus", () => verificarVersao());
 
   setInterval(() => {
     atualizarStatus();
