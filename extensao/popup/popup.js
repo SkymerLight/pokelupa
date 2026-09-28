@@ -115,6 +115,23 @@ async function iniciar() {
   });
 
   const salvo = await chrome.storage.local.get([chaveResumo, chaveAjustes, chaveShinies]);
+  const Idiomas = window.PokeLupaIdiomas;
+  let idioma = (salvo[chaveAjustes] && salvo[chaveAjustes].idioma) || Idiomas.idiomaPadrao();
+  const retraduzir = Idiomas.observar(document.body, () => idioma);
+  const desenharBandeiras = () => {
+    $("bandeiras").innerHTML = ["pt", "en", "es"].map(codigo => `<button type="button" data-idioma="${codigo}" class="${codigo === idioma ? "ativa" : ""}" title="${Idiomas.nomesIdiomas[codigo]}">${Idiomas.bandeiras[codigo]}</button>`).join("");
+  };
+  desenharBandeiras();
+  $("bandeiras").addEventListener("click", async evento => {
+    const botao = evento.target.closest("[data-idioma]");
+    if (!botao) return;
+    idioma = botao.dataset.idioma;
+    const atual = (await chrome.storage.local.get(chaveAjustes))[chaveAjustes] || {};
+    atual.idioma = idioma;
+    await chrome.storage.local.set({ [chaveAjustes]: atual });
+    desenharBandeiras();
+    retraduzir();
+  });
   desenhar(salvo[chaveResumo], salvo[chaveShinies]);
 
   const ajustes = { cartaoAtivo: true, alertaShiny: true, somShiny: true, lancadorVisivel: true, ...(salvo[chaveAjustes] || {}) };

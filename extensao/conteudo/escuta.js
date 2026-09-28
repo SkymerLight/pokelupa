@@ -260,7 +260,12 @@
         const destino = typeof argumentos[0] === "string" ? argumentos[0] : (argumentos[0] && argumentos[0].url) || "";
         if (destino.includes("/api/game/shop/sell") && argumentos[1] && argumentos[1].body) {
           const conflitos = conflitosDeVenda(argumentos[1].body);
-          if (conflitos.length && !window.confirm(`PokeLupa: esta venda inclui itens que você reservou.\n\n${conflitos.join("\n")}\n\nVender mesmo assim?`)) {
+          const textosConfirmacao = {
+            pt: ["PokeLupa: esta venda inclui itens que você reservou.", "Vender mesmo assim?"],
+            en: ["PokeLupa: this sale includes items you reserved.", "Sell anyway?"],
+            es: ["PokeLupa: esta venta incluye ítems que reservaste.", "¿Vender de todos modos?"]
+          }[marcacoes.idioma] || ["PokeLupa: esta venda inclui itens que você reservou.", "Vender mesmo assim?"];
+          if (conflitos.length && !window.confirm(`${textosConfirmacao[0]}\n\n${conflitos.join("\n")}\n\n${textosConfirmacao[1]}`)) {
             return Promise.reject(new Error("Venda cancelada pela PokeLupa (itens reservados)"));
           }
         }
@@ -362,8 +367,14 @@
     if (elemento !== ultimoElemento) {
       ultimoElemento = elemento;
       let alvo = null;
+      const cartaDiaria = elemento.closest(".dk-card");
+      if (cartaDiaria) {
+        const numero = Number(String(cartaDiaria.querySelector(".dk-card-no")?.textContent || "").replace(/\D/g, ""));
+        const nome = cartaDiaria.querySelector(".dk-card-name")?.textContent?.trim() || null;
+        if (numero || nome) alvo = { tipo: "especie", dados: { speciesId: numero || null, nome } };
+      }
       let atual = elemento;
-      for (let subida = 0; atual && subida < 4 && !alvo; subida++) {
+      for (let subida = 0; atual && subida < 4 && !alvo && !cartaDiaria; subida++) {
         alvo = descobrirAlvo(atual);
         atual = atual.parentElement;
       }
@@ -527,7 +538,7 @@
     if (evento.source !== window || !evento.data || evento.data.marca !== marcaPedido) return;
     const pedido = evento.data;
     if (pedido.tipo === "marcacoes") {
-      marcacoes = { reservas: pedido.dados?.reservas || {}, notas: pedido.dados?.notas || {}, bloqueios: pedido.dados?.bloqueios || {} };
+      marcacoes = { reservas: pedido.dados?.reservas || {}, notas: pedido.dados?.notas || {}, bloqueios: pedido.dados?.bloqueios || {}, idioma: pedido.dados?.idioma || "pt" };
       agendarMarcacao();
     } else if (pedido.tipo === "pedirEstado") {
       enviarParaPainel("estado", { ...estado, motivo: "pedido" });

@@ -166,6 +166,9 @@ async function atualizar() {
 }
 
 async function iniciar() {
+  const salvo = await chrome.storage.local.get("pokelupa:ajustes").catch(() => ({}));
+  const idioma = (salvo["pokelupa:ajustes"] && salvo["pokelupa:ajustes"].idioma) || window.PokeLupaIdiomas.idiomaPadrao();
+  window.PokeLupaIdiomas.observar(document.body, () => idioma);
   $("atualizar").addEventListener("click", atualizar);
   if (!("showDirectoryPicker" in window)) {
     $("versoes").textContent = `Versão ${manifesto.version} instalada`;

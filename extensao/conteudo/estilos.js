@@ -383,6 +383,20 @@ select.busca option { background: var(--fundo-2); }
 
 .alternar.destaque-chave { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--borda-forte); border-radius: 12px; background: rgba(231,194,106,0.06); }
 
+.efetividade { margin-top: 10px; display: grid; gap: 4px; }
+.efetividade-titulo { font-size: 10.5px; text-transform: uppercase; letter-spacing: .8px; color: var(--texto-3); font-weight: 700; }
+.efetividade-linha { display: grid; grid-template-columns: 112px 1fr; gap: 6px; align-items: start; }
+.efetividade-rotulo { font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+.efetividade-rotulo small { font-weight: 600; opacity: .8; }
+.efetividade-tipos { display: flex; flex-wrap: wrap; gap: 3px; }
+.efetividade-tipos .mini-tipo { font-size: 10px; padding: 1px 5px; }
+
+.bandeiras { display: flex; gap: 6px; }
+.bandeira { width: 38px; height: 30px; border-radius: 9px; border: 1px solid var(--borda); background: rgba(255,255,255,0.03); cursor: pointer; display: grid; place-items: center; padding: 0; opacity: .55; transition: all .15s; }
+.bandeira:hover { opacity: 1; }
+.bandeira.ativa { opacity: 1; border-color: var(--ouro); box-shadow: 0 0 0 2px rgba(231,194,106,0.25); }
+.bandeira svg { display: block; border-radius: 3px; }
+
 @media (max-width: 520px) {
   .painel { width: auto; left: 8px; right: 8px; top: 8px; bottom: 8px; }
 }

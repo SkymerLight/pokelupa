@@ -362,6 +362,24 @@
     return resultado;
   }
 
+  function gruposEfetividade(tipo1, tipo2) {
+    const grupos = [
+      { chave: "x4", rotulo: "Muito efetivo", mult: "4×", cor: "#f87171", tipos: [] },
+      { chave: "x2", rotulo: "Efetivo", mult: "2×", cor: "#fb923c", tipos: [] },
+      { chave: "x1", rotulo: "Normal", mult: "1×", cor: "#94a3b8", tipos: [] },
+      { chave: "meio", rotulo: "Inefetivo", mult: "½×", cor: "#60a5fa", tipos: [] },
+      { chave: "quarto", rotulo: "Muito inefetivo", mult: "¼×", cor: "#818cf8", tipos: [] },
+      { chave: "zero", rotulo: "Nulo", mult: "0×", cor: "#64748b", tipos: [] }
+    ];
+    if (!tipo1) return grupos;
+    for (const tipo of Object.keys(tabelaTipos)) {
+      const valor = multiplicadorDefensivo(tipo, tipo1, tipo2);
+      const grupo = valor >= 4 ? grupos[0] : valor >= 2 ? grupos[1] : valor === 1 ? grupos[2] : valor === 0 ? grupos[5] : valor <= 0.25 ? grupos[4] : grupos[3];
+      grupo.tipos.push(tipo);
+    }
+    return grupos;
+  }
+
   function analisarPokemon(poke, especie) {
     const qualidade = Number(poke.quality) || 0;
     const nivel = Number(poke.level) || 0;
@@ -536,6 +554,7 @@
   }
 
   raiz.PokeLupaFormulas = {
+    gruposEfetividade,
     potencialDePoder,
     poderNoNivel,
     estimarIvsAproximado,

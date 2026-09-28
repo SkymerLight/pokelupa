@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "PokeLupa — Poke Idle World",
   "short_name": "PokeLupa",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "description": "Passe o mouse para ver IV, qualidade e nota dos Pokémons, saiba quanto vale sua mochila e acompanhe o loot por hora no Poke Idle World.",
   "homepage_url": "https://skymerlight.github.io/pokelupa/",
   "icons": {
@@ -45,6 +45,7 @@
         "https://*.idleworld.online/*"
       ],
       "js": [
+        "nucleo/idiomas.js",
         "nucleo/formulas.js",
         "nucleo/cartao.js",
         "conteudo/estilos.js",

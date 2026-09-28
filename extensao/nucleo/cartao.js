@@ -86,5 +86,18 @@
     `;
   }
 
-  raiz.PokeLupaCartao = { esc, corTipo, htmlTipos, htmlPoke };
+  function htmlEfetividade(tipo1, tipo2, titulo) {
+    const grupos = F.gruposEfetividade(tipo1, tipo2).filter(g => g.tipos.length);
+    return `
+      <div class="efetividade">
+        ${titulo ? `<div class="efetividade-titulo">${esc(titulo)}</div>` : ""}
+        ${grupos.map(g => `
+          <div class="efetividade-linha">
+            <span class="efetividade-rotulo" style="color:${g.cor}">${esc(g.rotulo)} <small>${g.mult}</small></span>
+            <span class="efetividade-tipos">${g.tipos.map(t => `<span class="mini-tipo" style="background:${corTipo(t)}">${esc(F.nomesTipos[t] || t)}</span>`).join("")}</span>
+          </div>`).join("")}
+      </div>`;
+  }
+
+  raiz.PokeLupaCartao = { esc, corTipo, htmlTipos, htmlPoke, htmlEfetividade };
 })(typeof globalThis !== "undefined" ? globalThis : window);

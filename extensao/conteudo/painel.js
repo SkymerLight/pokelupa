@@ -4,6 +4,7 @@
 
   const F = globalThis.PokeLupaFormulas;
   const Cartao = globalThis.PokeLupaCartao;
+  const Idiomas = globalThis.PokeLupaIdiomas;
   const marcaJogo = "pokelupa:jogo";
   const marcaPainel = "pokelupa:painel";
   const chaves = {
@@ -37,7 +38,8 @@
     alertaShiny: true,
     somShiny: true,
     lancadorVisivel: true,
-    posicaoLancador: null
+    posicaoLancador: null,
+    idioma: null
   };
   const nomesCategorias = {
     loot: "Loot", stone: "Pedra", heal: "Cura", revive: "Reviver", clan: "Clã", misc: "Diverso",
@@ -200,6 +202,7 @@
   `;
   sombra.appendChild(camada);
 
+  const retraduzir = Idiomas.observar(sombra, () => ajustes.idioma || Idiomas.idiomaPadrao());
   const ref = nome => camada.querySelector(`[data-ref="${nome}"]`);
   const cartao = ref("cartao");
   const painel = ref("painel");
@@ -366,8 +369,10 @@
 
   function enviarMarcacoes() {
     const reservas = {};
-    for (const [id, registro] of calcularReservas()) reservas[id] = rotuloReserva(registro);
-    for (const id in reservasUsuario.ignorar) if (reservasUsuario.ignorar[id] && !reservas[id]) reservas[id] = "IGNORADO";
+    const idioma = ajustes.idioma || Idiomas.idiomaPadrao();
+    const traduzirSelo = texto => texto.replace(/CLÃ|GUARDAR|IGNORADO/g, parte => Idiomas.traduzir(parte, idioma));
+    for (const [id, registro] of calcularReservas()) reservas[id] = traduzirSelo(rotuloReserva(registro));
+    for (const id in reservasUsuario.ignorar) if (reservasUsuario.ignorar[id] && !reservas[id]) reservas[id] = traduzirSelo("IGNORADO");
     const bloqueios = {};
     for (const [id, registro] of calcularReservas()) {
       const item = dados.itens.get(id);
@@ -382,7 +387,37 @@
     for (const x of analisesDosPokes()) {
       if (x.poke.id != null && x.analise.nota) notas[x.poke.id] = { letra: x.analise.nota.letra, pontos: x.analise.pontos };
     }
-    window.postMessage({ marca: marcaPainel, tipo: "marcacoes", dados: { reservas, notas, bloqueios } }, location.origin);
+    window.postMessage({ marca: marcaPainel, tipo: "marcacoes", dados: { reservas, notas, bloqueios, idioma } }, location.origin);
+  }
+
+  function melhoresContra(especieAlvo, quantos) {
+    const nivelAlvo = especieAlvo.huntLevel > 0 ? especieAlvo.huntLevel : 50;
+    const alvo = F.montarCombatente(especieAlvo, nivelAlvo);
+    return analisesDosPokes().map(x => {
+      if (!x.especie || !x.poke.stats || x.poke.isDitto) return null;
+      const meu = F.montarCombatente(x.especie, x.poke.level || 1, x.poke.stats, [x.poke.type1 || x.especie.type1, x.poke.type2 || x.especie.type2]);
+      return { x, resultado: F.avaliarConfronto(meu, alvo) };
+    }).filter(Boolean).sort((a, b) => b.resultado.pontuacao - a.resultado.pontuacao).slice(0, quantos);
+  }
+
+  function htmlCartaoEspecie(alvo) {
+    const especie = (alvo.speciesId && dados.especies.get(alvo.speciesId)) || (alvo.nome && dados.especiesPorNome.get(String(alvo.nome).toLowerCase()));
+    if (!especie) return "";
+    const sprite = F.urlSprite(especie.spriteId);
+    const meus = melhoresContra(especie, 3);
+    const topo = meus.length ? meus[0].resultado.pontuacao : 1;
+    return `
+      <div class="topo">
+        <div class="retrato">${sprite ? `<img src="${sprite}" alt="" referrerpolicy="no-referrer">` : ""}</div>
+        <div class="identidade">
+          <div class="nome">${esc(especie.name)}</div>
+          <div class="sub">${Cartao.htmlTipos([especie.type1, especie.type2].filter(Boolean))}${especie.huntLevel ? `<span class="fraco">hunt Nv ${especie.huntLevel}</span>` : ""}</div>
+        </div>
+      </div>
+      ${Cartao.htmlEfetividade(especie.type1, especie.type2, "Golpes contra ele")}
+      ${meus.length ? `<div class="efetividade-titulo" style="margin-top:10px">Seus melhores contra ele</div>
+        <div class="linhas">${meus.map(m => `<div class="linha"><span>${esc(m.x.analise.nome)} <small class="fraco">Nv ${m.x.poke.level}${m.resultado.meuGolpe ? ` · ${esc(m.resultado.meuGolpe.nome)}` : ""}</small></span><b class="num">${Math.round(m.resultado.pontuacao / (topo || 1) * 100)}%</b></div>`).join("")}</div>` : ""}
+    `;
   }
 
   function htmlCartaoItem(alvo) {
@@ -436,7 +471,7 @@
     clearTimeout(temporizadorEsconder);
     const chave = JSON.stringify(alvo);
     if (chave !== chaveCartaoAtual) {
-      const html = alvo.tipo === "poke" ? Cartao.htmlPoke(alvo.dados, acharEspecie(alvo.dados)) : htmlCartaoItem(alvo.dados);
+      const html = alvo.tipo === "poke" ? Cartao.htmlPoke(alvo.dados, acharEspecie(alvo.dados)) : alvo.tipo === "especie" ? htmlCartaoEspecie(alvo.dados) : htmlCartaoItem(alvo.dados);
       if (!html) return esconderCartao();
       cartao.innerHTML = html;
       cartao.classList.toggle("shiny", alvo.tipo === "poke" && !!alvo.dados.shiny);
@@ -966,10 +1001,10 @@
         <div>
           <div class="nome">${esc(especieAlvo.name)}</div>
           <div class="sub">${Cartao.htmlTipos([especieAlvo.type1, especieAlvo.type2].filter(Boolean))}${especieAlvo.huntLevel ? `<span>hunt Nv ${especieAlvo.huntLevel}</span>` : ""}</div>
-          <div class="fraquezas" style="margin-top:6px"><em>Fraco a</em>${[...fraq.x4.map(t => `<span class="mini-tipo x4" style="background:${Cartao.corTipo(t)}">${esc(F.nomesTipos[t])} 4×</span>`), ...fraq.x2.map(t => `<span class="mini-tipo" style="background:${Cartao.corTipo(t)}">${esc(F.nomesTipos[t])}</span>`)].join("") || '<span class="fraco">nada</span>'}</div>
           <div class="fraquezas"><em>Ataca com</em>${tiposGolpes.map(t => `<span class="mini-tipo" style="background:${Cartao.corTipo(t)}">${esc(F.nomesTipos[t] || t)}</span>`).join("") || '<span class="fraco">—</span>'}</div>
         </div>
       </div>
+      ${Cartao.htmlEfetividade(especieAlvo.type1, especieAlvo.type2, "Golpes contra ele")}
       <div class="nota-lateral">% = quão boa é a escolha (100% = a melhor da lista): conta a rapidez para derrotar e desconta quem cai antes. Etiqueta = quanto aguenta.</div>
       <div class="secao">Seus melhores contra ele</div>
       ${meus.length ? `<div class="lista">${meus.map(m => linhaResultado(m.x.analise.nome, m.especie, m.x.poke.shiny, m.resultado, `Nv ${m.x.poke.level}${m.x.poke.team ? " · time" : ""}`, topoMeus)).join("")}</div>` : `<div class="vazio" style="padding:14px">Abra a mochila no jogo para eu conhecer seus Pokémons.</div>`}
@@ -1174,7 +1209,9 @@
 
   function montarAjustes() {
     const quantidadeMercado = Object.keys(precosMercado).length;
+    const idiomaAtual = ajustes.idioma || Idiomas.idiomaPadrao();
     corpo.innerHTML = `
+      <div class="alternar"><div><b>Idioma</b><span>${esc(Idiomas.nomesIdiomas[idiomaAtual])}</span></div><div class="bandeiras">${["pt", "en", "es"].map(codigo => `<button class="bandeira ${codigo === idiomaAtual ? "ativa" : ""}" data-idioma="${codigo}" title="${Idiomas.nomesIdiomas[codigo]}">${Idiomas.bandeiras[codigo]}</button>`).join("")}</div></div>
       ${htmlAlternar("cartaoAtivo", "Cartão ao passar o mouse", "Mostra IV, qualidade e nota ao passar o mouse em Pokémons e itens.")}
       ${htmlAlternar("alertaShiny", "Alerta de shiny", "Aviso na tela quando um shiny aparece no seu mapa.")}
       ${htmlAlternar("somShiny", "Som do alerta", "Toca um sininho junto com o aviso de shiny.")}
@@ -1361,6 +1398,15 @@
   });
 
   camada.addEventListener("click", evento => {
+    const idiomaBotao = evento.target.closest("[data-idioma]");
+    if (idiomaBotao) {
+      ajustes.idioma = idiomaBotao.dataset.idioma;
+      gravar(chaves.ajustes, ajustes);
+      renderizar(true);
+      retraduzir();
+      enviarMarcacoes();
+      return;
+    }
     const alvo = evento.target.closest("[data-acao],[data-aba],[data-categoria],[data-filtro],[data-alternar],[data-guardar],[data-ignorar],[data-berry],[data-faixa],[data-fonte],[data-reserva-alternar],[data-poke]");
     if (!alvo) return;
     if (alvo.dataset.fonte) {
@@ -1634,6 +1680,8 @@
       if (area !== "local" || !mudancas[chaves.ajustes]) return;
       ajustes = { ...ajustesPadrao, ...(mudancas[chaves.ajustes].newValue || {}) };
       renderizar(false);
+      retraduzir();
+      enviarMarcacoes();
     });
   } catch (erro) {}
 
