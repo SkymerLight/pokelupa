@@ -17,6 +17,7 @@
     receitas: "pokelupa:receitas",
     craft: "pokelupa:craft",
     novidade: "pokelupa:novidade",
+    novidadeAvisada: "pokelupa:novidadeAvisada",
     bancoClas: "pokelupa:bancoClas",
     pokesMercado: "pokelupa:pokesMercado"
   };
@@ -580,6 +581,18 @@
     }
   }
 
+  let novidadeAvisada = null;
+
+  function avisarNovidade(info) {
+    const aviso = document.createElement("div");
+    aviso.className = "aviso novidade-aviso";
+    aviso.innerHTML = `<div class="brilho">⬆️</div><div><b>PokeLupa ${esc(info.versao)} disponível</b><span>${esc(info.resumo || "Clique para atualizar.")}</span><button class="botao pequeno" data-acao="abrirAtualizador">Atualizar agora</button></div><button class="fechar-aviso" title="Fechar">✕</button>`;
+    aviso.querySelector(".fechar-aviso").addEventListener("click", () => aviso.remove());
+    aviso.querySelector("[data-acao]").addEventListener("click", () => aviso.remove());
+    areaAvisos.appendChild(aviso);
+    setTimeout(() => aviso.remove(), 30000);
+  }
+
   function mostrarNovidade() {
     const faixa = ref("novidade");
     let atual = "0";
@@ -589,6 +602,11 @@
     const tem = novidade && versaoMaior(novidade.versao, atual);
     faixa.hidden = !tem;
     lancador.classList.toggle("novidade", !!tem);
+    if (tem && novidadeAvisada !== novidade.versao) {
+      novidadeAvisada = novidade.versao;
+      gravar(chaves.novidadeAvisada, novidade.versao);
+      avisarNovidade(novidade);
+    }
     if (tem) {
       faixa.innerHTML = `<b>Versão ${esc(novidade.versao)} disponível</b><span>${esc(novidade.resumo || "Atualize para ganhar as novidades.")}</span><button class="botao pequeno" data-acao="abrirAtualizador">Atualizar agora</button>`;
     }
@@ -1605,6 +1623,8 @@
     });
   } catch (erro) {}
 
+  setInterval(() => verificarVersao(), 30 * 60 * 1000);
+
   setInterval(() => {
     atualizarStatus();
     if (visao.painelAberto && visao.aba === "sessao") renderizar(false);
@@ -1616,6 +1636,7 @@
       ler(chaves.reservas), ler(chaves.cla), ler(chaves.receitas), ler(chaves.craft)
     ]);
     reservasUsuario = { ...reservasPadrao, ...(reservasSalvas || {}) };
+    novidadeAvisada = (await ler(chaves.novidadeAvisada)) || null;
     infoCla = claSalvo || null;
     receitas = receitasSalvas || null;
     craftLiberadas = Array.isArray(craftSalvo) ? craftSalvo : [];

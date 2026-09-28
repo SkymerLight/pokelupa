@@ -376,6 +376,10 @@ select.busca option { background: var(--fundo-2); }
 .contra-linha .meio > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fraquezas .mini-tipo { white-space: nowrap; }
 
+.novidade-aviso { align-items: flex-start; }
+.novidade-aviso .botao.pequeno { margin: 8px 0 0; }
+.fechar-aviso { margin-left: auto; background: none; border: 0; color: var(--texto-2); cursor: pointer; font-size: 14px; }
+
 @media (max-width: 520px) {
   .painel { width: auto; left: 8px; right: 8px; top: 8px; bottom: 8px; }
 }
