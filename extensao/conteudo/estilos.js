@@ -319,8 +319,16 @@ select.busca option { background: var(--fundo-2); }
 .stats-simples span { display: block; font-size: 9.5px; color: var(--texto-3); font-weight: 700; }
 .stats-simples b { font-size: 12px; }
 
-.abas { gap: 0; padding: 0 6px; }
-.aba { font-size: 11.5px; padding: 9px 2px 10px; }
+.abas { gap: 0; padding: 0 6px; overflow-x: auto; scrollbar-width: none; }
+.abas::-webkit-scrollbar { display: none; }
+.aba { font-size: 11.5px; padding: 9px 6px 10px; flex: 1 0 auto; }
+.hunt-linha { cursor: pointer; }
+.hunt-linha .icone { font-size: 10px; font-weight: 800; color: #0b1020; }
+.regiao-kanto { background: #60a5fa !important; }
+.regiao-outland { background: #f97316 !important; }
+.regiao-orre { background: #eab308 !important; }
+.regiao-nightmare { background: #a855f7 !important; }
+.detalhe-hunt { cursor: default; }
 .alternador { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px; border-radius: 11px; background: rgba(255,255,255,0.04); border: 1px solid var(--borda); }
 .alternador button { height: 30px; border: 0; border-radius: 8px; background: none; color: var(--texto-2); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .alternador button.ativo { background: var(--ouro); color: #1b1404; }

@@ -100,6 +100,26 @@
       case "inventory":
         estado.inventario = Array.isArray(msg.items) ? msg.items.map(i => ({ itemId: i.itemId ?? i.id, quantity: Number(i.quantity) || 0 })) : [];
         break;
+      case "analyzer":
+        enviarParaPainel("analisador", {
+          segundos: Number(msg.seconds) || 0,
+          xp: Number(msg.xpGained) || 0,
+          kills: Number(msg.kills) || 0,
+          loot: Number(msg.lootGold) || 0,
+          capturas: Number(msg.captures) || 0,
+          capturasGold: Number(msg.capturesGold) || 0,
+          shinies: Number(msg.shinyCaptures) || 0,
+          gastos: Number(msg.supplyGold) || 0,
+          saldo: Number(msg.balance) || 0,
+          itens: Array.isArray(msg.drops) ? msg.drops.map(d => ({ id: d.itemId, qtd: Number(d.qty) || 0, gold: Number(d.gold) || 0 })) : []
+        });
+        return;
+      case "hunt-resume":
+        if (msg.slug) enviarParaPainel("huntInicio", { slug: String(msg.slug), nome: msg.name ? String(msg.name) : null });
+        return;
+      case "field-teleport-city":
+        enviarParaPainel("huntFim", { motivo: "cidade" });
+        return;
       case "balls":
         estado.bolas = {
           catalog: (msg.catalog || []).map(b => ({ id: b.id, name: b.name, iconUrl: b.iconUrl, bound: !!b.bound, infinite: !!b.infinite, price: b.price ?? b.priceGold ?? 0 })),
@@ -133,8 +153,20 @@
         this.addEventListener("message", evento => tratarMensagem(evento.data));
         this.addEventListener("close", () => {
           if (socketDoJogo === this) socketDoJogo = null;
+          enviarParaPainel("huntFim", { motivo: "desconectou" });
         });
       }
+    }
+
+    send(dados) {
+      try {
+        if (this === socketDoJogo && typeof dados === "string" && dados.includes("hunt")) {
+          const pedido = JSON.parse(dados);
+          if (pedido && pedido.type === "enter-hunt" && pedido.slug) enviarParaPainel("huntInicio", { slug: String(pedido.slug) });
+          else if (pedido && pedido.type === "leave-hunt") enviarParaPainel("huntFim", { motivo: "saiu" });
+        }
+      } catch (erro) {}
+      return super.send(dados);
     }
   }
   window.WebSocket = SocketEspiao;
@@ -542,6 +574,12 @@
       agendarMarcacao();
     } else if (pedido.tipo === "pedirEstado") {
       enviarParaPainel("estado", { ...estado, motivo: "pedido" });
+    } else if (pedido.tipo === "lerAnalisador") {
+      if (socketDoJogo && socketDoJogo.readyState === SocketOriginal.OPEN) {
+        try {
+          SocketOriginal.prototype.send.call(socketDoJogo, JSON.stringify({ type: "analyzer-get" }));
+        } catch (erro) {}
+      }
     } else if (pedido.tipo === "atualizar") {
       if (socketDoJogo && socketDoJogo.readyState === SocketOriginal.OPEN) {
         for (const tipo of ["inv-get", "balls-get", "pokes-get"]) {

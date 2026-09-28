@@ -24,6 +24,7 @@
 |---|---|
 | 🔎 **Cartão no mouse** | Em qualquer Pokémon da mochila, time, chat ou mercado: IV de cada atributo, qualidade, nota de S a D, poder e fraquezas. Em itens: preço no NPC, total, preço de mercado e quem dropa. |
 | 💰 **Valor da mochila** | Lê a mochila inteira direto do jogo (sem print e sem rolar a tela) e soma tudo pelo preço do Mark e do Flint. Quando você abre o mercado ela aprende o menor preço de cada item. |
+| 🗺️ **Hunts** | Mede cada hunt separada (XP/h, loot/h, lucro/h, kills/h, drops e Pokémon usado, inclusive a forma do Ditto). Sair para a cidade ou trocar de hunt fecha o trecho, então a média não se mistura. Filtro por região e busca por nome. |
 | ⏱️ **Loot por hora** | Conta o que entrou na mochila durante a sessão e calcula quanto isso rende por hora. Vender itens não atrapalha a conta. |
 | 🏆 **Ranking** | Seus Pokémons ou os anúncios do mercado, do melhor para o pior (ou o contrário), com busca por nome e filtros de raridade, IV e qualidade. No mercado ainda ordena por custo-benefício. |
 | ⚔️ **Contra** | Digite o Pokémon da hunt ou do boss e veja quais dos seus (e quais espécies do jogo) ganham dele, com o golpe que vão usar e o golpe que vão levar. |

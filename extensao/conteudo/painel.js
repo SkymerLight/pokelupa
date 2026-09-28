@@ -20,7 +20,9 @@
     novidade: "pokelupa:novidade",
     novidadeAvisada: "pokelupa:novidadeAvisada",
     bancoClas: "pokelupa:bancoClas",
-    pokesMercado: "pokelupa:pokesMercado"
+    pokesMercado: "pokelupa:pokesMercado",
+    hunts: "pokelupa:hunts",
+    trechoHunt: "pokelupa:trechoHunt"
   };
   const enderecoSite = (() => {
     try {
@@ -61,6 +63,8 @@
   let novidade = null;
   let bancoClas = null;
   let pokesMercado = [];
+  let bancoHunts = { hunts: {} };
+  let trechoHunt = null;
   let pokesMercadoEm = 0;
 
   const dados = {
@@ -88,6 +92,10 @@
     ordemInvertida: false,
     buscaContra: "",
     buscaBerry: "",
+    buscaHunt: "",
+    regiaoHunt: "todas",
+    ordemHunt: "xp",
+    huntAberta: null,
     contraLendarios: false,
     claVisto: "",
     ivMinPokes: "",
@@ -191,6 +199,7 @@
         <button class="aba" data-aba="mochila">Mochila</button>
         <button class="aba" data-aba="pokes">Ranking</button>
         <button class="aba" data-aba="contra">Contra</button>
+        <button class="aba" data-aba="hunts">Hunts</button>
         <button class="aba" data-aba="sessao">Sessão</button>
         <button class="aba" data-aba="cla">Clã</button>
         <button class="aba" data-aba="profissao">Profissão</button>
@@ -1061,13 +1070,194 @@
       <div class="nota-lateral">% = quão boa é a escolha (100% = a melhor da lista): conta a rapidez para derrotar e desconta quem cai antes. Etiqueta = quanto aguenta.</div>
       ${dittoPrincipal ? `
         <div class="secao">Seu ${esc(dittoPrincipal.analise.nome.replace(/ ⚠.*$/, ""))}: melhores formas</div>
-        <div class="nota-lateral">Nv ${dittoPrincipal.poke.level} · qualidade ${(dittoPrincipal.poke.quality || 0).toFixed(2)} · IV ${dittoPrincipal.analise.ivTotal ?? "?"}. Testando cada Pokémon que ${dittoPrincipal.poke.shiny ? "o Ditto shiny pode copiar (só espécies com forma shiny, sem lendários, Megas, Outland e bosses de Orre)" : "o Ditto pode copiar (sem lendários, Megas, Outland e bosses de Orre)"}, com os IVs e a qualidade dele.</div>
+        <div class="nota-lateral">Nv ${dittoPrincipal.poke.level} · qualidade ${(dittoPrincipal.poke.quality || 0).toFixed(2)} · IV ${dittoPrincipal.analise.ivTotal ?? "?"}. Testando cada Pokémon que o ${dittoPrincipal.poke.shiny ? "Shiny Ditto" : "Ditto"} pode copiar, com os IVs e a qualidade dele.</div>
         ${formasDitto.length ? `<div class="lista">${formasDitto.map(f => linhaResultado(`Virar ${f.especie.name}`, f.especie, dittoPrincipal.poke.shiny, f.resultado, `Nv ${dittoPrincipal.poke.level}`, topoDitto)).join("")}</div>` : `<div class="vazio" style="padding:14px">Nenhuma forma ajuda contra ele.</div>`}` : ""}
       <div class="secao">Seus melhores contra ele</div>
       ${meus.length ? `<div class="lista">${meus.map(m => linhaResultado(m.x.analise.nome + (m.iguais ? ` (+${m.iguais} iguais)` : ""), m.especie, m.x.poke.shiny, m.resultado, `Nv ${m.x.poke.level}${m.x.poke.team ? " · time" : ""}`, topoMeus)).join("")}</div>` : `<div class="vazio" style="padding:14px">Abra a mochila no jogo para eu conhecer seus Pokémons.</div>`}
       <div class="secao">Melhores espécies do jogo</div>
       <div class="nota-lateral">Comparando todos no Nv 100, IV médio e qualidade 1,00. <button class="chip ${visao.contraLendarios ? "ativo" : ""}" data-acao="alternarLendarios">${visao.contraLendarios ? "Com lendários" : "Sem lendários"}</button></div>
       <div class="lista">${especies.map(e => linhaResultado(e.especie.name + (e.variantes.length ? ` (+${e.variantes.length})` : ""), e.especie, false, e.resultado, esc(nomesRaridade[e.especie.rarity] || ""), topoEspecies)).join("")}</div>
+    `;
+  }
+
+  const minimoTrecho = 120;
+
+  function regiaoDaHunt(slug, nome) {
+    const texto = `${slug} ${nome || ""}`.toLowerCase();
+    if (texto.includes("nightmare")) return "Nightmare";
+    if (texto.includes("outland")) return "Outland";
+    if (texto.includes("orre")) return "Orre";
+    return "Kanto";
+  }
+
+  function nomeBonitoDaHunt(slug) {
+    return String(slug || "").replace(/[-_]+/g, " ").replace(/\b\w/g, letra => letra.toUpperCase());
+  }
+
+  function liderAtual() {
+    const lider = (estadoJogo.pokes || []).find(p => p.leader) || (estadoJogo.pokes || []).find(p => p.team);
+    if (!lider) return null;
+    const especie = acharEspecie(lider);
+    const forma = lider.isDitto && especie && especie.pokeId !== 132 ? especie.name : null;
+    return {
+      chave: `${lider.name}|${forma || ""}|${lider.id ?? ""}`,
+      nome: lider.name,
+      nivel: lider.level,
+      shiny: !!lider.shiny,
+      forma
+    };
+  }
+
+  function diferencaAnalisador(fim, inicio) {
+    const itens = {};
+    const antes = new Map((inicio.itens || []).map(i => [i.id, i.qtd]));
+    for (const item of fim.itens || []) {
+      const qtd = item.qtd - (antes.get(item.id) || 0);
+      if (qtd > 0) itens[item.id] = qtd;
+    }
+    return {
+      segundos: Math.max(0, fim.segundos - inicio.segundos),
+      xp: Math.max(0, fim.xp - inicio.xp),
+      kills: Math.max(0, fim.kills - inicio.kills),
+      loot: Math.max(0, fim.loot - inicio.loot),
+      capturas: Math.max(0, fim.capturas - inicio.capturas),
+      capturasGold: Math.max(0, fim.capturasGold - inicio.capturasGold),
+      shinies: Math.max(0, fim.shinies - inicio.shinies),
+      gastos: Math.max(0, fim.gastos - inicio.gastos),
+      itens
+    };
+  }
+
+  function somarNaHunt(trecho, delta) {
+    const tempo = delta.segundos > 0 ? delta.segundos : Math.round((Date.now() - trecho.inicio) / 1000);
+    if (tempo < minimoTrecho) return;
+    const hunt = bancoHunts.hunts[trecho.slug] || (bancoHunts.hunts[trecho.slug] = {
+      nome: trecho.nome || nomeBonitoDaHunt(trecho.slug), regiao: regiaoDaHunt(trecho.slug, trecho.nome),
+      segundos: 0, xp: 0, kills: 0, loot: 0, capturas: 0, capturasGold: 0, shinies: 0, gastos: 0, trechos: 0, itens: {}, porPoke: {}
+    });
+    if (trecho.nome) hunt.nome = trecho.nome;
+    for (const campo of ["xp", "kills", "loot", "capturas", "capturasGold", "shinies", "gastos"]) hunt[campo] += delta[campo];
+    hunt.segundos += tempo;
+    hunt.trechos += 1;
+    hunt.atualizadoEm = Date.now();
+    for (const id in delta.itens) hunt.itens[id] = (hunt.itens[id] || 0) + delta.itens[id];
+    if (trecho.lider) {
+      const poke = hunt.porPoke[trecho.lider.chave] || (hunt.porPoke[trecho.lider.chave] = { ...trecho.lider, segundos: 0, xp: 0, loot: 0, gastos: 0, capturasGold: 0, kills: 0 });
+      poke.nivel = trecho.lider.nivel;
+      poke.segundos += tempo;
+      for (const campo of ["xp", "loot", "gastos", "capturasGold", "kills"]) poke[campo] += delta[campo];
+    }
+    gravar(chaves.hunts, bancoHunts);
+  }
+
+  function fecharTrecho() {
+    if (trechoHunt && trechoHunt.base && trechoHunt.ultimo) somarNaHunt(trechoHunt, diferencaAnalisador(trechoHunt.ultimo, trechoHunt.base));
+    trechoHunt = null;
+    gravar(chaves.trechoHunt, null);
+    if (visao.aba === "hunts") renderizar(false);
+  }
+
+  function abrirTrecho(slug, nome) {
+    if (trechoHunt && trechoHunt.slug === slug) {
+      if (nome) trechoHunt.nome = nome;
+      return;
+    }
+    fecharTrecho();
+    trechoHunt = { slug, nome: nome || (bancoHunts.hunts[slug] && bancoHunts.hunts[slug].nome) || null, inicio: Date.now(), base: null, ultimo: null, lider: liderAtual() };
+    gravar(chaves.trechoHunt, trechoHunt);
+    setTimeout(() => pedirAoJogo("lerAnalisador"), 2500);
+    if (visao.aba === "hunts") renderizar(false);
+  }
+
+  function registrarAnalisador(foto) {
+    if (!trechoHunt) return;
+    if (!trechoHunt.base) {
+      trechoHunt.base = foto;
+      trechoHunt.ultimo = foto;
+    } else if (foto.segundos < trechoHunt.ultimo.segundos || foto.xp < trechoHunt.ultimo.xp) {
+      somarNaHunt(trechoHunt, diferencaAnalisador(trechoHunt.ultimo, trechoHunt.base));
+      trechoHunt.base = foto;
+      trechoHunt.ultimo = foto;
+      trechoHunt.inicio = Date.now();
+    } else {
+      trechoHunt.ultimo = foto;
+    }
+    if (!trechoHunt.lider) trechoHunt.lider = liderAtual();
+    gravar(chaves.trechoHunt, trechoHunt);
+    if (visao.aba === "hunts" && visao.painelAberto) renderizar(false);
+  }
+
+  function porHoraDe(valor, segundos) {
+    return segundos > 0 ? valor / segundos * 3600 : 0;
+  }
+
+  function htmlTrechoAtual() {
+    if (!trechoHunt) return `<div class="explica">Entre numa hunt e cace normalmente. A PokeLupa mede cada hunt separada: sair para a cidade, trocar de hunt ou cair a conexão fecha o trecho, e trechos com menos de 2 minutos não entram na conta.</div>`;
+    const delta = trechoHunt.base && trechoHunt.ultimo ? diferencaAnalisador(trechoHunt.ultimo, trechoHunt.base) : null;
+    const tempo = Math.round((Date.now() - trechoHunt.inicio) / 1000);
+    const segundos = delta && delta.segundos > 0 ? delta.segundos : tempo;
+    const lucro = delta ? delta.loot + delta.capturasGold - delta.gastos : 0;
+    return `
+      <div class="destaque">
+        <div class="moeda">${svgLogo}</div>
+        <div class="rotulo">Caçando agora</div>
+        <div class="grande" style="font-size:20px">${esc(trechoHunt.nome || nomeBonitoDaHunt(trechoHunt.slug))}</div>
+        <div class="nota-rodape">${duracao(tempo * 1000)}${trechoHunt.lider ? ` · ${esc(trechoHunt.lider.nome)}${trechoHunt.lider.forma ? ` (virou ${esc(trechoHunt.lider.forma)})` : ""} Nv ${trechoHunt.lider.nivel}` : ""}</div>
+      </div>
+      ${delta && segundos >= 60 ? `<div class="grade">
+        <div class="quadro"><span>XP/h</span><b class="num">${F.formatarCurto(porHoraDe(delta.xp, segundos))}</b><i>${F.formatarCurto(delta.xp)} no trecho</i></div>
+        <div class="quadro"><span>Lucro/h</span><b class="num">${F.formatarCurto(porHoraDe(lucro, segundos))}</b><i>loot + capturas − gastos</i></div>
+      </div>` : `<div class="nota-lateral">Juntando os primeiros dados do trecho…</div>`}
+    `;
+  }
+
+  function montarHunts() {
+    const lista = Object.entries(bancoHunts.hunts).map(([slug, hunt]) => ({ slug, ...hunt }));
+    const busca = semAcento(visao.buscaHunt);
+    const ordens = {
+      xp: h => porHoraDe(h.xp, h.segundos),
+      loot: h => porHoraDe(h.loot, h.segundos),
+      lucro: h => porHoraDe(h.loot + h.capturasGold - h.gastos, h.segundos),
+      kills: h => porHoraDe(h.kills, h.segundos),
+      tempo: h => h.segundos
+    };
+    const rotulos = { xp: "XP/h", loot: "Loot/h", lucro: "Lucro/h", kills: "Kills/h", tempo: "Tempo" };
+    const filtradas = lista
+      .filter(h => visao.regiaoHunt === "todas" || h.regiao === visao.regiaoHunt)
+      .filter(h => !busca || semAcento(h.nome).includes(busca) || semAcento(h.slug).includes(busca))
+      .sort((a, b) => ordens[visao.ordemHunt](b) - ordens[visao.ordemHunt](a));
+    corpo.innerHTML = `
+      ${htmlTrechoAtual()}
+      <div class="ferramentas">
+        <input class="busca" data-campo="buscaHunt" placeholder="Buscar hunt ou Pokémon…" value="${esc(visao.buscaHunt)}">
+        <select class="busca" data-campo="ordemHunt">${Object.entries(rotulos).map(([v, t]) => `<option value="${v}" ${visao.ordemHunt === v ? "selected" : ""}>${t}</option>`).join("")}</select>
+      </div>
+      <div class="chips">${["todas", "Kanto", "Outland", "Orre", "Nightmare"].map(r => `<button class="chip ${visao.regiaoHunt === r ? "ativo" : ""}" data-regiao-hunt="${r}">${r === "todas" ? "Todas" : r}</button>`).join("")}</div>
+      <div class="lista">
+        ${filtradas.length ? filtradas.map(h => {
+          const aberta = visao.huntAberta === h.slug;
+          const lucro = h.loot + h.capturasGold - h.gastos;
+          const pouco = h.segundos < 1800;
+          const drops = Object.entries(h.itens).map(([id, qtd]) => ({ item: dados.itens.get(Number(id)), qtd })).filter(d => d.item).sort((a, b) => (b.item.npcPrice || 0) * b.qtd - (a.item.npcPrice || 0) * a.qtd).slice(0, 6);
+          return `
+            <div class="item-linha hunt-linha" data-hunt="${esc(h.slug)}">
+              <div class="icone regiao-${esc(h.regiao.toLowerCase())}">${esc(h.regiao.slice(0, 2).toUpperCase())}</div>
+              <div class="meio"><b>${esc(h.nome)}</b><span>${esc(h.regiao)} · ${duracao(h.segundos * 1000)} em ${h.trechos} trecho${h.trechos === 1 ? "" : "s"}${pouco ? " · poucos dados" : ""}</span></div>
+              <div class="fim"><b class="num">${visao.ordemHunt === "tempo" ? duracao(h.segundos * 1000) : F.formatarCurto(ordens[visao.ordemHunt](h))}</b><span>${rotulos[visao.ordemHunt]}</span></div>
+              ${aberta ? `<div class="expandido detalhe-hunt">
+                <div class="grade">
+                  <div class="quadro"><span>XP/h</span><b class="num">${F.formatarCurto(porHoraDe(h.xp, h.segundos))}</b></div>
+                  <div class="quadro"><span>Loot/h</span><b class="num">${F.formatarCurto(porHoraDe(h.loot, h.segundos))}</b></div>
+                  <div class="quadro"><span>Lucro/h</span><b class="num">${F.formatarCurto(porHoraDe(lucro, h.segundos))}</b><i>loot + capturas − gastos</i></div>
+                  <div class="quadro"><span>Kills/h</span><b class="num">${F.formatarCurto(porHoraDe(h.kills, h.segundos))}</b><i>gastos/h ${F.formatarCurto(porHoraDe(h.gastos, h.segundos))}</i></div>
+                </div>
+                ${drops.length ? `<div class="efetividade-titulo" style="margin-top:10px">Drops que mais renderam</div><div class="linhas">${drops.map(d => `<div class="linha"><span>${esc(d.item.name)}</span><b class="num">${F.formatarCurto(porHoraDe(d.qtd, h.segundos))}/h</b></div>`).join("")}</div>` : ""}
+                ${Object.keys(h.porPoke).length ? `<div class="efetividade-titulo" style="margin-top:10px">Por Pokémon</div><div class="linhas">${Object.values(h.porPoke).sort((a, b) => porHoraDe(b.xp, b.segundos) - porHoraDe(a.xp, a.segundos)).map(p => `<div class="linha"><span>${esc(p.nome)}${p.forma ? ` <small class="fraco">virou ${esc(p.forma)}</small>` : ""} <small class="fraco">Nv ${p.nivel} · ${duracao(p.segundos * 1000)}</small></span><b class="num">${F.formatarCurto(porHoraDe(p.xp, p.segundos))} XP/h</b></div>`).join("")}</div>` : ""}
+                <button class="botao secundario pequeno" data-apagar-hunt="${esc(h.slug)}" style="margin-top:10px">Apagar dados desta hunt</button>
+              </div>` : ""}
+            </div>`;
+        }).join("") : `<div class="vazio" style="padding:18px">${lista.length ? "Nenhuma hunt com esses filtros." : "Nenhuma hunt medida ainda."}</div>`}
+      </div>
     `;
   }
 
@@ -1315,7 +1505,7 @@
     atualizarStatus();
     if (!visao.painelAberto) return;
     const rolagem = corpo.scrollTop;
-    ({ mochila: montarMochila, pokes: montarPokes, sessao: montarSessao, cla: montarCla, profissao: montarProfissao, contra: montarContra, ajustes: montarAjustes }[visao.aba])();
+    ({ mochila: montarMochila, pokes: montarPokes, sessao: montarSessao, cla: montarCla, profissao: montarProfissao, contra: montarContra, hunts: montarHunts, ajustes: montarAjustes }[visao.aba])();
     if (!forcar) corpo.scrollTop = rolagem;
   }
 
@@ -1428,6 +1618,18 @@
       aoMudarDados("craft");
       return;
     }
+    if (tipo === "huntInicio") {
+      abrirTrecho(carga.slug, carga.nome);
+      return;
+    }
+    if (tipo === "huntFim") {
+      fecharTrecho();
+      return;
+    }
+    if (tipo === "analisador") {
+      registrarAnalisador(carga);
+      return;
+    }
     if (tipo === "mercadoPokes") {
       const porId = new Map(pokesMercado.map(poke => [poke.id, poke]));
       for (const poke of carga) porId.set(poke.id, poke);
@@ -1462,6 +1664,16 @@
       renderizar(true);
       retraduzir();
       enviarMarcacoes();
+      return;
+    }
+    const huntBotao = evento.target.closest("[data-regiao-hunt],[data-apagar-hunt],[data-hunt]");
+    if (huntBotao && !evento.target.closest(".detalhe-hunt:not(button)") || (huntBotao && huntBotao.dataset.apagarHunt)) {
+      if (huntBotao.dataset.regiaoHunt) visao.regiaoHunt = huntBotao.dataset.regiaoHunt;
+      else if (huntBotao.dataset.apagarHunt) {
+        delete bancoHunts.hunts[huntBotao.dataset.apagarHunt];
+        gravar(chaves.hunts, bancoHunts);
+      } else if (huntBotao.dataset.hunt) visao.huntAberta = visao.huntAberta === huntBotao.dataset.hunt ? null : huntBotao.dataset.hunt;
+      renderizar(false);
       return;
     }
     const alvo = evento.target.closest("[data-acao],[data-aba],[data-categoria],[data-filtro],[data-alternar],[data-guardar],[data-ignorar],[data-berry],[data-faixa],[data-fonte],[data-reserva-alternar],[data-poke]");
@@ -1643,6 +1855,15 @@
     } else if (campo.dataset.campo === "ordemPokes") {
       visao.ordemPokes = campo.value;
       desenharListaPokes();
+    } else if (campo.dataset.campo === "buscaHunt") {
+      visao.buscaHunt = campo.value;
+      const posicao = campo.selectionStart;
+      renderizar(false);
+      const novo = corpo.querySelector('[data-campo="buscaHunt"]');
+      if (novo) {
+        novo.focus();
+        novo.setSelectionRange(posicao, posicao);
+      }
     } else if (campo.dataset.campo === "buscaBerry") {
       visao.buscaBerry = campo.value;
       const termo = semAcento(campo.value);
@@ -1663,6 +1884,11 @@
     }
   });
   camada.addEventListener("change", evento => {
+    if (evento.target.dataset.campo === "ordemHunt") {
+      visao.ordemHunt = evento.target.value;
+      renderizar(false);
+      return;
+    }
     if (evento.target.dataset.campo === "claVisto") {
       visao.claVisto = evento.target.value;
       renderizar(false);
@@ -1747,6 +1973,9 @@
   } catch (erro) {}
 
   setInterval(() => verificarVersao(), 10 * 60 * 1000);
+  setInterval(() => {
+    if (trechoHunt) pedirAoJogo("lerAnalisador");
+  }, 60 * 1000);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") verificarVersao();
   });
@@ -1767,6 +1996,9 @@
     infoCla = claSalvo || null;
     receitas = receitasSalvas || null;
     craftLiberadas = Array.isArray(craftSalvo) ? craftSalvo : [];
+    bancoHunts = (await ler(chaves.hunts)) || { hunts: {} };
+    const trechoSalvo = await ler(chaves.trechoHunt);
+    if (trechoSalvo && Date.now() - (trechoSalvo.inicio || 0) < 12 * 60 * 60 * 1000) trechoHunt = trechoSalvo;
     const mercadoPokesSalvo = await ler(chaves.pokesMercado);
     if (mercadoPokesSalvo && Date.now() - (mercadoPokesSalvo.em || 0) < 24 * 60 * 60 * 1000) {
       pokesMercado = mercadoPokesSalvo.lista || [];
