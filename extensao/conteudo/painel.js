@@ -28,7 +28,7 @@
     try {
       return (chrome.runtime.getManifest().homepage_url || "").replace(/\/?$/, "/");
     } catch (erro) {
-      return "https://skymerlight.github.io/pokelupa/";
+      return "https://pokelupa.vercel.app/";
     }
   })();
   const enderecoBancoClas = `${enderecoSite}dados/clas.json`;
@@ -65,6 +65,7 @@
   let pokesMercado = [];
   let bancoHunts = { hunts: {} };
   let trechoHunt = null;
+  let bonusAtivos = { boosts: [], events: [] };
   let pokesMercadoEm = 0;
 
   const dados = {
@@ -206,7 +207,7 @@
         <button class="aba" data-aba="ajustes">Ajustes</button>
       </div>
       <div class="corpo" data-ref="corpo"></div>
-      <div class="rodape"><span class="apoio"><a href="https://pixie.gg/skymerlight" target="_blank" rel="noopener" class="apoio-pix" title="Apoiar com Pix">${svgPix} Apoiar</a><button class="apoio-discord" data-acao="copiarDiscord" title="Copiar meu Discord">${svgDiscord} Skymer#9220</button></span><a href="https://skymerlight.github.io/pokelupa/" target="_blank" rel="noopener" data-ref="linkRepo">PokeLupa</a></div>
+      <div class="rodape"><span class="apoio"><a href="https://pixie.gg/skymerlight" target="_blank" rel="noopener" class="apoio-pix" title="Apoiar com Pix">${svgPix} Apoiar</a><button class="apoio-discord" data-acao="copiarDiscord" title="Copiar meu Discord">${svgDiscord} Skymer#9220</button></span><a href="https://pokelupa.vercel.app/" target="_blank" rel="noopener" data-ref="linkRepo">PokeLupa</a></div>
     </div>
     <button class="lancador" data-ref="lancador" title="PokeLupa (Alt+L)">${svgLogo}<span class="ponto"></span></button>
   `;
@@ -1135,6 +1136,14 @@
       nome: trecho.nome || nomeBonitoDaHunt(trecho.slug), regiao: regiaoDaHunt(trecho.slug, trecho.nome),
       segundos: 0, xp: 0, kills: 0, loot: 0, capturas: 0, capturasGold: 0, shinies: 0, gastos: 0, trechos: 0, itens: {}, porPoke: {}
     });
+    for (const campo of ["xpBase", "pokeXp", "pokeXpBase", "segundosComGastos", "segundosComBonus"]) if (typeof hunt[campo] !== "number") hunt[campo] = 0;
+    if (!hunt.bonus) hunt.bonus = {};
+    hunt.xpBase += delta.xpBase ?? delta.xp;
+    hunt.pokeXp += delta.pokeXp || 0;
+    hunt.pokeXpBase += delta.pokeXpBase || 0;
+    if (delta.temGastos) hunt.segundosComGastos += tempo;
+    if (delta.bonus && Object.keys(delta.bonus).length) hunt.segundosComBonus += tempo;
+    for (const parte in delta.bonus || {}) hunt.bonus[parte] = (hunt.bonus[parte] || 0) + delta.bonus[parte];
     if (trecho.nome) hunt.nome = trecho.nome;
     for (const campo of ["xp", "kills", "loot", "capturas", "capturasGold", "shinies", "gastos"]) hunt[campo] += delta[campo];
     hunt.segundos += tempo;
@@ -1150,8 +1159,30 @@
     gravar(chaves.hunts, bancoHunts);
   }
 
+  function deltaDoTrecho(trecho) {
+    const doAnalisador = trecho.base && trecho.ultimo ? diferencaAnalisador(trecho.ultimo, trecho.base) : null;
+    const k = trecho.kills;
+    const segundosReais = Math.round((Date.now() - trecho.inicio) / 1000);
+    if (k && k.kills > 0) {
+      return {
+        segundos: doAnalisador && doAnalisador.segundos > 0 ? doAnalisador.segundos : segundosReais,
+        xp: k.xp, xpBase: k.xpBase, pokeXp: k.pokeXp, pokeXpBase: k.pokeXpBase,
+        kills: k.kills, loot: doAnalisador ? Math.max(doAnalisador.loot, k.lootGold) : k.lootGold,
+        capturas: doAnalisador ? doAnalisador.capturas : 0,
+        capturasGold: doAnalisador ? doAnalisador.capturasGold : 0,
+        shinies: doAnalisador ? doAnalisador.shinies : 0,
+        gastos: doAnalisador ? doAnalisador.gastos : 0,
+        temGastos: !!doAnalisador,
+        itens: k.itens, bonus: k.bonus
+      };
+    }
+    if (doAnalisador) return { ...doAnalisador, xpBase: doAnalisador.xp, pokeXp: 0, pokeXpBase: 0, temGastos: true, bonus: {} };
+    return null;
+  }
+
   function fecharTrecho() {
-    if (trechoHunt && trechoHunt.base && trechoHunt.ultimo) somarNaHunt(trechoHunt, diferencaAnalisador(trechoHunt.ultimo, trechoHunt.base));
+    const delta = trechoHunt ? deltaDoTrecho(trechoHunt) : null;
+    if (trechoHunt && delta) somarNaHunt(trechoHunt, delta);
     trechoHunt = null;
     gravar(chaves.trechoHunt, null);
     if (visao.aba === "hunts") renderizar(false);
@@ -1163,7 +1194,7 @@
       return;
     }
     fecharTrecho();
-    trechoHunt = { slug, nome: nome || (bancoHunts.hunts[slug] && bancoHunts.hunts[slug].nome) || null, inicio: Date.now(), base: null, ultimo: null, lider: liderAtual() };
+    trechoHunt = { slug, nome: nome || (bancoHunts.hunts[slug] && bancoHunts.hunts[slug].nome) || null, inicio: Date.now(), base: null, ultimo: null, lider: liderAtual(), kills: novoAcumuladoDeKills() };
     gravar(chaves.trechoHunt, trechoHunt);
     setTimeout(() => pedirAoJogo("lerAnalisador"), 2500);
     if (visao.aba === "hunts") renderizar(false);
@@ -1175,10 +1206,12 @@
       trechoHunt.base = foto;
       trechoHunt.ultimo = foto;
     } else if (foto.segundos < trechoHunt.ultimo.segundos || foto.xp < trechoHunt.ultimo.xp) {
-      somarNaHunt(trechoHunt, diferencaAnalisador(trechoHunt.ultimo, trechoHunt.base));
+      const delta = deltaDoTrecho(trechoHunt);
+      if (delta) somarNaHunt(trechoHunt, delta);
       trechoHunt.base = foto;
       trechoHunt.ultimo = foto;
       trechoHunt.inicio = Date.now();
+      trechoHunt.kills = novoAcumuladoDeKills();
     } else {
       trechoHunt.ultimo = foto;
     }
@@ -1187,13 +1220,36 @@
     if (visao.aba === "hunts" && visao.painelAberto) renderizar(false);
   }
 
+  function novoAcumuladoDeKills() {
+    return { kills: 0, xp: 0, xpBase: 0, pokeXp: 0, pokeXpBase: 0, lootGold: 0, itens: {}, bonus: {} };
+  }
+
+  function registrarKill(kill) {
+    if (!trechoHunt) return;
+    const acumulado = trechoHunt.kills || (trechoHunt.kills = novoAcumuladoDeKills());
+    acumulado.kills += 1;
+    acumulado.xp += kill.xp;
+    acumulado.xpBase += kill.xpBase || kill.xp;
+    acumulado.pokeXp += kill.pokeXp;
+    acumulado.pokeXpBase += kill.pokeXpBase || kill.pokeXp;
+    for (const item of kill.loot) {
+      acumulado.itens[item.id] = (acumulado.itens[item.id] || 0) + item.qtd;
+      const dadosItem = dados.itens.get(item.id);
+      if (dadosItem && destinoDoItem(dadosItem) !== "nenhum") acumulado.lootGold += (dadosItem.npcPrice || 0) * item.qtd;
+    }
+    for (const parte in kill.partes) {
+      if (parte !== "base" && Number(kill.partes[parte]) > 0) acumulado.bonus[parte] = (acumulado.bonus[parte] || 0) + Number(kill.partes[parte]);
+    }
+    if (acumulado.kills % 10 === 0) gravar(chaves.trechoHunt, trechoHunt);
+  }
+
   function porHoraDe(valor, segundos) {
     return segundos > 0 ? valor / segundos * 3600 : 0;
   }
 
   function htmlTrechoAtual() {
     if (!trechoHunt) return `<div class="explica">Entre numa hunt e cace normalmente. A PokeLupa mede cada hunt separada: sair para a cidade, trocar de hunt ou cair a conexão fecha o trecho, e trechos com menos de 2 minutos não entram na conta.</div>`;
-    const delta = trechoHunt.base && trechoHunt.ultimo ? diferencaAnalisador(trechoHunt.ultimo, trechoHunt.base) : null;
+    const delta = deltaDoTrecho(trechoHunt);
     const tempo = Math.round((Date.now() - trechoHunt.inicio) / 1000);
     const segundos = delta && delta.segundos > 0 ? delta.segundos : tempo;
     const lucro = delta ? delta.loot + delta.capturasGold - delta.gastos : 0;
@@ -1205,10 +1261,14 @@
         <div class="nota-rodape">${duracao(tempo * 1000)}${trechoHunt.lider ? ` · ${esc(trechoHunt.lider.nome)}${trechoHunt.lider.forma ? ` (virou ${esc(trechoHunt.lider.forma)})` : ""} Nv ${trechoHunt.lider.nivel}` : ""}</div>
       </div>
       ${delta && segundos >= 60 ? `<div class="grade">
-        <div class="quadro"><span>XP/h</span><b class="num">${F.formatarCurto(porHoraDe(delta.xp, segundos))}</b><i>${F.formatarCurto(delta.xp)} no trecho</i></div>
+        <div class="quadro"><span>XP/h</span><b class="num">${F.formatarCurto(porHoraDe(delta.xp, segundos))}</b><i>base ${F.formatarCurto(porHoraDe(delta.xpBase ?? delta.xp, segundos))}/h sem bônus</i></div>
         <div class="quadro"><span>Lucro/h</span><b class="num">${F.formatarCurto(porHoraDe(lucro, segundos))}</b><i>loot + capturas − gastos</i></div>
       </div>` : `<div class="nota-lateral">Juntando os primeiros dados do trecho…</div>`}
     `;
+  }
+
+  function nomeDoBonus(parte) {
+    return { streak: "Streak", boost: "Boost", vip: "VIP", event: "Evento", mentor: "Mentoria", gym: "Insígnias", held: "X-Experience", typeDay: "Tipo do dia", star: "Slot", discord: "Discord", debuff: "Distorção" }[parte] || parte;
   }
 
   function montarHunts() {
@@ -1216,12 +1276,13 @@
     const busca = semAcento(visao.buscaHunt);
     const ordens = {
       xp: h => porHoraDe(h.xp, h.segundos),
+      xpBase: h => porHoraDe(h.xpBase || h.xp, h.segundos),
       loot: h => porHoraDe(h.loot, h.segundos),
       lucro: h => porHoraDe(h.loot + h.capturasGold - h.gastos, h.segundos),
       kills: h => porHoraDe(h.kills, h.segundos),
       tempo: h => h.segundos
     };
-    const rotulos = { xp: "XP/h", loot: "Loot/h", lucro: "Lucro/h", kills: "Kills/h", tempo: "Tempo" };
+    const rotulos = { xp: "XP/h", xpBase: "XP base/h", loot: "Loot/h", lucro: "Lucro/h", kills: "Kills/h", tempo: "Tempo" };
     const filtradas = lista
       .filter(h => visao.regiaoHunt === "todas" || h.regiao === visao.regiaoHunt)
       .filter(h => !busca || semAcento(h.nome).includes(busca) || semAcento(h.slug).includes(busca))
@@ -1246,11 +1307,13 @@
               <div class="fim"><b class="num">${visao.ordemHunt === "tempo" ? duracao(h.segundos * 1000) : F.formatarCurto(ordens[visao.ordemHunt](h))}</b><span>${rotulos[visao.ordemHunt]}</span></div>
               ${aberta ? `<div class="expandido detalhe-hunt">
                 <div class="grade">
-                  <div class="quadro"><span>XP/h</span><b class="num">${F.formatarCurto(porHoraDe(h.xp, h.segundos))}</b></div>
+                  <div class="quadro"><span>XP/h</span><b class="num">${F.formatarCurto(porHoraDe(h.xp, h.segundos))}</b><i>base ${F.formatarCurto(porHoraDe(h.xpBase || h.xp, h.segundos))}/h sem bônus</i></div>
                   <div class="quadro"><span>Loot/h</span><b class="num">${F.formatarCurto(porHoraDe(h.loot, h.segundos))}</b></div>
                   <div class="quadro"><span>Lucro/h</span><b class="num">${F.formatarCurto(porHoraDe(lucro, h.segundos))}</b><i>loot + capturas − gastos</i></div>
                   <div class="quadro"><span>Kills/h</span><b class="num">${F.formatarCurto(porHoraDe(h.kills, h.segundos))}</b><i>gastos/h ${F.formatarCurto(porHoraDe(h.gastos, h.segundos))}</i></div>
                 </div>
+                ${Object.keys(h.bonus || {}).length ? `<div class="nota-lateral">Bônus de XP vistos: ${Object.entries(h.bonus).sort((a, b) => b[1] - a[1]).map(([parte, valor]) => `${esc(nomeDoBonus(parte))} ${Math.round(valor / Math.max(1, h.xpBase || h.xp) * 100)}%`).join(" · ")}</div>` : ""}
+                ${h.segundosComGastos < h.segundos * 0.8 ? `<div class="nota-lateral">Gastos e capturas só entram quando o analisador de hunt do jogo está aberto.</div>` : ""}
                 ${drops.length ? `<div class="efetividade-titulo" style="margin-top:10px">Drops que mais renderam</div><div class="linhas">${drops.map(d => `<div class="linha"><span>${esc(d.item.name)}</span><b class="num">${F.formatarCurto(porHoraDe(d.qtd, h.segundos))}/h</b></div>`).join("")}</div>` : ""}
                 ${Object.keys(h.porPoke).length ? `<div class="efetividade-titulo" style="margin-top:10px">Por Pokémon</div><div class="linhas">${Object.values(h.porPoke).sort((a, b) => porHoraDe(b.xp, b.segundos) - porHoraDe(a.xp, a.segundos)).map(p => `<div class="linha"><span>${esc(p.nome)}${p.forma ? ` <small class="fraco">virou ${esc(p.forma)}</small>` : ""} <small class="fraco">Nv ${p.nivel} · ${duracao(p.segundos * 1000)}</small></span><b class="num">${F.formatarCurto(porHoraDe(p.xp, p.segundos))} XP/h</b></div>`).join("")}</div>` : ""}
                 <button class="botao secundario pequeno" data-apagar-hunt="${esc(h.slug)}" style="margin-top:10px">Apagar dados desta hunt</button>
@@ -1624,6 +1687,14 @@
     }
     if (tipo === "huntFim") {
       fecharTrecho();
+      return;
+    }
+    if (tipo === "kill") {
+      registrarKill(carga);
+      return;
+    }
+    if (tipo === "bonus") {
+      bonusAtivos[carga.origem === "events" ? "events" : "boosts"] = carga.ativos || [];
       return;
     }
     if (tipo === "analisador") {

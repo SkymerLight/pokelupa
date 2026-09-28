@@ -114,6 +114,32 @@
           itens: Array.isArray(msg.drops) ? msg.drops.map(d => ({ id: d.itemId, qtd: Number(d.qty) || 0, gold: Number(d.gold) || 0 })) : []
         });
         return;
+      case "field-kill": {
+        const partes = msg.xpParts || {};
+        const partesPoke = (msg.pokeXp && msg.pokeXp.parts) || {};
+        enviarParaPainel("kill", {
+          xp: Number(msg.xpGained) || 0,
+          xpBase: Number(partes.base) || 0,
+          partes,
+          pokeXp: Number(msg.pokeXp && msg.pokeXp.xpGained) || 0,
+          pokeXpBase: Number(partesPoke.base) || 0,
+          loot: Array.isArray(msg.loot) ? msg.loot.map(i => ({ id: i.itemId, qtd: Number(i.qty) || 0 })) : [],
+          especie: msg.speciesName || null,
+          lootExtra: Number(msg.star && msg.star.lootPct) || 0,
+          evento: msg.eventName || null
+        });
+        return;
+      }
+      case "boosts":
+      case "events": {
+        const lista = Array.isArray(msg.boosts) ? msg.boosts : Array.isArray(msg.events) ? msg.events : [];
+        const agora = Date.now();
+        enviarParaPainel("bonus", {
+          origem: msg.type,
+          ativos: lista.filter(b => b && (b.frozen || Number(b.until) > agora)).map(b => String(b.key || b.name || "?"))
+        });
+        return;
+      }
       case "hunt-resume":
         if (msg.slug) enviarParaPainel("huntInicio", { slug: String(msg.slug), nome: msg.name ? String(msg.name) : null });
         return;

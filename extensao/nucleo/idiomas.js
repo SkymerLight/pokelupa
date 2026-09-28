@@ -117,6 +117,8 @@
     "Golpes contra ele": ["Moves against it", "Ataques contra él"],
     "Muito efetivo": ["Super effective", "Muy efectivo"],
     "Hunts": ["Hunts", "Hunts"],
+    "XP base/h": ["Base XP/h", "XP base/h"],
+    "Gastos e capturas só entram quando o analisador de hunt do jogo está aberto.": ["Supplies and catches only count while the game's hunt analyzer is open.", "Gastos y capturas solo cuentan con el analizador de hunt del juego abierto."],
     "Caçando agora": ["Hunting now", "Cazando ahora"],
     "XP/h": ["XP/h", "XP/h"],
     "Loot/h": ["Loot/h", "Loot/h"],
@@ -334,6 +336,8 @@
     [/^(.+) \(\+(\d+) iguais\)$/, ["$1 (+$2 same)", "$1 (+$2 iguales)"]],
     [/^Seu (.+): melhores formas$/, ["Your $1: best forms", "Tu $1: mejores formas"]],
     [/^(.+) no trecho$/, ["$1 this stretch", "$1 en el tramo"]],
+    [/^base (.+)\/h sem bônus$/, ["base $1/h without bonuses", "base $1/h sin bonus"]],
+    [/^Bônus de XP vistos: (.+)$/, ["XP bonuses seen: $1", "Bonus de XP vistos: $1"]],
     [/^gastos\/h (.+)$/, ["supplies/h $1", "gastos/h $1"]],
     [/^(.+) · (.+) em (\d+) trechos?( · poucos dados)?$/, null],
     [/^Não deixa marcar/, null]
