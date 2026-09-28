@@ -239,7 +239,7 @@
           ataques: (especie.attacks || []).map(a => ({ name: a.name, power: a.power, type: a.type, category: a.category, cooldownMs: a.cooldownMs, learnLevel: a.learnLevel }))
         };
         dados.especies.set(especie.pokeId, enxuta);
-        dados.especiesPorNome.set(especie.name.toLowerCase(), enxuta);
+        if (!dados.especiesPorNome.has(especie.name.toLowerCase()) || especie.pokeId <= 1025) dados.especiesPorNome.set(especie.name.toLowerCase(), enxuta);
         for (const drop of especie.loot || []) {
           if (!drop || !drop.chance) continue;
           const chave = String(drop.name).toLowerCase();
@@ -265,6 +265,8 @@
   function idDoSprite(especie) {
     if (especie.pokeId <= 1025) return especie.pokeId;
     const palavras = especie.name.split(/\s+/);
+    const mesmoNome = [...dados.especies.values()].find(e => e.pokeId <= 1025 && e.name.toLowerCase() === especie.name.toLowerCase());
+    if (mesmoNome) return mesmoNome.pokeId;
     for (let i = 1; i < palavras.length; i++) {
       const base = dados.especiesPorNome.get(palavras.slice(i).join(" ").toLowerCase());
       if (base && base.pokeId <= 1025) return base.pokeId;
@@ -841,7 +843,7 @@
       const faixa = analise.faixa || { rotulo: "—", cor: "#94a3b8" };
       const chave = `${x.anuncio ? "m" : "p"}${poke.id ?? analise.nome + analise.nivel + posicao}`;
       const aberto = visao.pokeAberto === chave;
-      const sprite = F.urlSprite(especie && (especie.spriteId || especie.pokeId), poke.shiny);
+      const sprite = F.urlSprite(especie && (especie.spriteId), poke.shiny);
       const extra = x.anuncio ? (poke.price ? ` · 💲${F.formatarCurto(poke.price)}` : poke.diamantes ? ` · 💎${F.formatarCurto(poke.diamantes)}` : "") : (poke.sellValue ? ` · Mark 💲${F.formatarCurto(poke.sellValue)}` : "");
       return `
         <div class="item-linha poke-linha" data-poke="${esc(chave)}">
@@ -915,7 +917,7 @@
       const rapidez = Math.round(resultado.pontuacao / (topo || 1) * 100);
       const golpe = resultado.meuGolpe;
       const perigo = resultado.golpeDele;
-      const sprite = F.urlSprite(especie.spriteId || especie.pokeId, shiny);
+      const sprite = F.urlSprite(especie.spriteId, shiny);
       return `
         <div class="item-linha contra-linha">
           <div class="icone poke">${sprite ? `<img src="${sprite}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}</div>
@@ -934,7 +936,7 @@
 
     return `
       <div class="alvo-contra">
-        <div class="retrato">${F.urlSprite(especieAlvo.spriteId || especieAlvo.pokeId) ? `<img src="${F.urlSprite(especieAlvo.spriteId || especieAlvo.pokeId)}" alt="" referrerpolicy="no-referrer">` : ""}</div>
+        <div class="retrato">${F.urlSprite(especieAlvo.spriteId) ? `<img src="${F.urlSprite(especieAlvo.spriteId)}" alt="" referrerpolicy="no-referrer">` : ""}</div>
         <div>
           <div class="nome">${esc(especieAlvo.name)}</div>
           <div class="sub">${Cartao.htmlTipos([especieAlvo.type1, especieAlvo.type2].filter(Boolean))}${especieAlvo.huntLevel ? `<span>hunt Nv ${especieAlvo.huntLevel}</span>` : ""}</div>

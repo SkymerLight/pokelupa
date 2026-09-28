@@ -15,7 +15,7 @@
 
   function htmlPoke(poke, especie) {
     const a = F.analisarPokemon(poke, especie);
-    const sprite = F.urlSprite(especie && (especie.spriteId || especie.pokeId), poke.shiny);
+    const sprite = F.urlSprite(especie && (especie.spriteId || (especie.pokeId <= 1025 ? especie.pokeId : null)), poke.shiny);
     const pontos = a.pontos ?? 0;
     const nota = a.nota || { letra: "?", cor: "#94a3b8", rotulo: "Sem dados" };
 
@@ -73,7 +73,7 @@
           <div class="nome">${esc(a.nome)}${poke.shiny ? '<span class="estrela">✦</span>' : ""}</div>
           <div class="sub"><span class="num">Nv ${a.nivel || "?"}</span>${htmlTipos(a.tipos)}${poke.isDitto && especie && especie.pokeId !== 132 ? `<span class="fraco">virou ${esc(especie.name)}</span>` : ""}</div>
         </div>
-        <div class="selo" style="--pct:${pontos};--cor-selo:${nota.cor}" title="${esc(nota.rotulo)}: ${a.potencial !== null ? `potencial ${a.potencial}% do melhor ${especie ? esc(especie.name) : "exemplar"} possível` : `${pontos}/100`}"><b>${nota.letra}</b><small class="num">${a.pontos ?? ""}</small></div>
+        <div class="selo" style="--pct:${pontos};--cor-selo:${nota.cor}" title="${esc(nota.rotulo)}: ${a.potencial !== null ? `potencial ${a.potencial}% do melhor ${especie ? esc(especie.name) : "exemplar"} de captura selvagem${a.potencial > 100 ? " (passa de 100% porque a qualidade está acima do teto de 1,80)" : ""}` : `${pontos}/100`}"><b>${nota.letra}</b><small class="num">${a.pontos ?? ""}</small></div>
       </div>
       <div class="metricas">
         <div class="metrica"><span>Qualidade</span><b style="color:${faixa.cor}">${esc(faixa.rotulo)}</b><i class="num">×${a.qualidade ? a.qualidade.toFixed(2) : "?"} · ${a.qualidade > F.tetoSelvagem ? "além do teto" : melhorQue(a.qualidadePercentil)}</i></div>

@@ -474,14 +474,40 @@
     setTimeout(marcarLinhas, 120);
   }
 
-  document.addEventListener("click", evento => {
-    const caixa = evento.target instanceof Element ? evento.target.closest(".mks-srow") : null;
-    if (!caixa) return;
-    const marcador = caixa.querySelector("input.mks-check");
+  function bloqueioDaLinha(caixa) {
     const fibra = acharFibra(caixa);
     const chave = fibra && typeof fibra.key === "string" ? fibra.key.match(/^s-(\d+)$/) : null;
-    const bloqueio = chave ? marcacoes.bloqueios[chave[1]] : null;
-    if (!bloqueio || !bloqueio.tudo || !marcador || marcador.checked) return;
+    return chave ? marcacoes.bloqueios[chave[1]] : null;
+  }
+
+  function desmarcarGuardados() {
+    for (const caixa of document.querySelectorAll(".mks-srow.on")) {
+      const bloqueio = bloqueioDaLinha(caixa);
+      const marcador = caixa.querySelector("input.mks-check");
+      if (bloqueio && bloqueio.tudo && marcador) {
+        liberarProximoClique = true;
+        marcador.click();
+      }
+    }
+  }
+
+  let liberarProximoClique = false;
+
+  document.addEventListener("click", evento => {
+    if (!(evento.target instanceof Element)) return;
+    if (evento.target.closest(".mks-selall")) {
+      setTimeout(desmarcarGuardados, 60);
+      setTimeout(desmarcarGuardados, 250);
+      return;
+    }
+    const caixa = evento.target.closest(".mks-srow");
+    if (!caixa) return;
+    if (liberarProximoClique) {
+      liberarProximoClique = false;
+      return;
+    }
+    const bloqueio = bloqueioDaLinha(caixa);
+    if (!bloqueio || !bloqueio.tudo || caixa.classList.contains("on")) return;
     if (!evento.target.closest("label, input")) return;
     evento.preventDefault();
     evento.stopPropagation();

@@ -466,9 +466,11 @@
     ]);
     especies = listaEspecies;
     itens = listaItens;
-    for (const especie of especies) especiesPorNome.set(especie.name.toLowerCase(), especie);
+    for (const especie of especies) if (!especiesPorNome.has(especie.name.toLowerCase()) || especie.pokeId <= 1025) especiesPorNome.set(especie.name.toLowerCase(), especie);
     for (const especie of especies) {
       if (especie.pokeId <= 1025) continue;
+      const mesmoNome = especies.find(e => e.pokeId <= 1025 && e.name === especie.name);
+      if (mesmoNome) especie.spriteId = mesmoNome.pokeId;
       const palavras = especie.name.split(/\s+/);
       for (let i = 1; i < palavras.length && !especie.spriteId; i++) {
         const base = especiesPorNome.get(palavras.slice(i).join(" ").toLowerCase());
