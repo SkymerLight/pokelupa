@@ -31,7 +31,7 @@
   const enderecoBancoClas = `${enderecoSite}dados/clas.json`;
   const enderecoVersao = `${enderecoSite}download/versao.json`;
   const ervas = { comum: 19354, selvagem: 19356, porUnidade: 25 };
-  const reservasPadrao = { guardar: {}, ignorar: {}, berries: {}, unidadesCraft: 10, craftAutomatico: true, proximosRanks: false };
+  const reservasPadrao = { guardar: {}, ignorar: {}, berries: {}, unidadesCraft: 10, craftAutomatico: true, proximosRanks: false, travarCla: false, travarProfissao: false };
   const ajustesPadrao = {
     cartaoAtivo: true,
     alertaShiny: true,
@@ -345,6 +345,13 @@
       for (const ingrediente of receitas[id]) somar(ingrediente.id, ingrediente.qtd * unidades, "craft");
     }
     for (const id in reservasUsuario.guardar) if (reservasUsuario.guardar[id]) somar(id, Infinity, "guardar");
+    for (const registro of mapa.values()) {
+      const travado = (registro.motivos.has("clã") && reservasUsuario.travarCla) || (registro.motivos.has("craft") && reservasUsuario.travarProfissao);
+      if (travado) {
+        registro.qtd = Infinity;
+        registro.travado = true;
+      }
+    }
     return mapa;
   }
 
@@ -353,6 +360,7 @@
     const partes = [];
     if (registro.motivos.has("clã")) partes.push("CLÃ");
     if (registro.motivos.has("craft")) partes.push("CRAFT");
+    if (registro.travado) return `${partes.join("+")} 🔒`;
     return `${partes.join("+")} ${F.formatarCurto(registro.qtd)}`;
   }
 
@@ -391,7 +399,7 @@
     let linhas = `<div class="linha"><span>Quantidade</span><b class="num">${F.formatarNumero(quantidade)}</b></div>`;
     const reserva = calcularReservas().get(item.id);
     if (reserva) {
-      const motivos = [...reserva.motivos].map(m => m === "clã" ? "missão do clã" : m === "craft" ? "craft de berries" : "você marcou para guardar").join(" + ");
+      const motivos = [...reserva.motivos].map(m => m === "clã" ? "missão do clã" : m === "craft" ? "craft de berries" : "você marcou para guardar").join(" + ") + (reserva.travado ? " (travado)" : "");
       linhas += `<div class="linha"><span>Não venda: ${esc(motivos)}</span><b class="num ouro">${reserva.qtd === Infinity ? "tudo" : F.formatarNumero(reserva.qtd)}</b></div>`;
     }
     if (destino !== "nenhum") {
@@ -1110,9 +1118,14 @@
     return entrada ? entrada.quantity : 0;
   }
 
+  function htmlChaveTravar(chave, titulo, descricao) {
+    return `<div class="alternar destaque-chave"><div><b>🔒 ${esc(titulo)}</b><span>${esc(descricao)}</span></div><button class="chave ${reservasUsuario[chave] ? "ligada" : ""}" data-reserva-alternar="${chave}" aria-pressed="${!!reservasUsuario[chave]}"></button></div>`;
+  }
+
   function montarCla() {
     corpo.innerHTML = `
       <div class="explica">Os itens da missão do seu próximo rank ficam marcados como <b>não vender</b>: saem do valor da mochila e ganham um aviso na Loja do Mark.</div>
+      ${htmlChaveTravar("travarCla", "Travar itens do clã automaticamente", "Não deixa marcar para vender na Loja do Mark, nem pelo Selecionar tudo, igual ao 🔒.")}
       <div class="secao">Missões</div>
       ${htmlSecaoCla()}
     `;
@@ -1133,6 +1146,7 @@
     }
     corpo.innerHTML = `
       <div class="explica">Os ingredientes das berries que você crafta ficam marcados como <b>não vender</b>: saem do valor da mochila e ganham um aviso na Loja do Mark.</div>
+      ${htmlChaveTravar("travarProfissao", "Travar ingredientes automaticamente", "Não deixa marcar para vender na Loja do Mark, nem pelo Selecionar tudo, igual ao 🔒.")}
       <div class="secao">Craft de berries</div>
       ${receitas ? `
         <div class="ferramentas" style="margin-top:0">

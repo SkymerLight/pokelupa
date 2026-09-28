@@ -28,7 +28,7 @@
 | 🏆 **Ranking** | Seus Pokémons ou os anúncios do mercado, do melhor para o pior (ou o contrário), com busca por nome e filtros de raridade, IV e qualidade. No mercado ainda ordena por custo-benefício. |
 | ⚔️ **Contra** | Digite o Pokémon da hunt ou do boss e veja quais dos seus (e quais espécies do jogo) ganham dele, com o golpe que vão usar e o golpe que vão levar. |
 | ✨ **Alerta de shiny** | Aviso e som quando aparece shiny no seu mapa, com histórico. |
-| 🛡️ **Abas Clã e Profissão (não vender)** | Lê a missão do seu próximo rank de clã e as receitas de berries direto do jogo. Esses itens saem do valor da mochila e ganham um aviso na Loja do Mark (vermelho se você marcar para vender). Dá para guardar 🔒 (o jogo não deixa marcar para vender) ou ignorar 🚫 qualquer item. Antes de vender algo reservado, a PokeLupa pede confirmação. |
+| 🛡️ **Abas Clã e Profissão (não vender)** | Lê a missão do seu próximo rank de clã e as receitas de berries direto do jogo. Esses itens saem do valor da mochila e ganham um aviso na Loja do Mark (vermelho se você marcar para vender). Dá para guardar 🔒 (a Loja do Mark não deixa marcar para vender, nem pelo "Selecionar tudo") ou ignorar 🚫 qualquer item. As chaves **Travar automaticamente** nas abas Clã e Profissão travam sozinhas todos os itens da missão e os ingredientes das berries. Antes de vender algo reservado, a PokeLupa pede confirmação. |
 | 🤝 **Banco de missões de clã** | O jogo só mostra a missão do seu próximo rank. Quem usa a PokeLupa envia a sua com um clique e todo mundo passa a ver os itens de todos os ranks. |
 | 🏷️ **Nota na Loja do Mark** | Na aba Pokémon da loja, cada Pokémon mostra a nota S–D ao lado. |
 

@@ -380,6 +380,8 @@ select.busca option { background: var(--fundo-2); }
 .novidade-aviso .botao.pequeno { margin: 8px 0 0; }
 .fechar-aviso { margin-left: auto; background: none; border: 0; color: var(--texto-2); cursor: pointer; font-size: 14px; }
 
+.alternar.destaque-chave { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--borda-forte); border-radius: 12px; background: rgba(231,194,106,0.06); }
+
 @media (max-width: 520px) {
   .painel { width: auto; left: 8px; right: 8px; top: 8px; bottom: 8px; }
 }
