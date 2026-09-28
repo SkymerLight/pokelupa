@@ -88,6 +88,7 @@
     ordemInvertida: false,
     buscaContra: "",
     buscaBerry: "",
+    contraLendarios: false,
     claVisto: "",
     ivMinPokes: "",
     ivMaxPokes: "",
@@ -922,6 +923,44 @@
     }).join("");
   }
 
+  const naoCopiaveis = new Set([132, 142, 144, 145, 146, 150, 151, 243, 244, 245, 249, 250, 251]);
+  const bossesDeOrre = new Set([289, 350, 373, 376, 464, 465, 466, 467, 477]);
+  let formasShiny = new Set([1,2,3,4,5,6,7,8,9,12,13,14,15,16,17,18,19,20,21,22,24,26,28,31,34,36,38,40,41,43,44,45,46,47,48,49,51,52,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,72,73,74,75,76,78,79,80,81,82,83,84,85,87,88,89,90,91,92,93,94,95,97,98,99,100,101,102,103,104,105,106,107,109,110,111,112,114,116,117,118,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,143,147,148,152,153,154,155,156,157,158,159,160,163,164,168,169,171,175,177,178,179,181,186,189,195,196,197,203,204,205,208,210,211,212,213,217,218,219,220,221,222,225,226,227,228,229,230,231,232,234,236,239,240,241,246,247,252,255,256,257,258,259,260,277,280,281,282,303,304,305,306,310,324,326,447,448,468,472]);
+
+  function dittoPodeCopiar(especie, shiny) {
+    const id = especie.pokeId;
+    if (naoCopiaveis.has(id) || bossesDeOrre.has(id) || id >= 14000 || (id >= 10500 && id < 13000)) return false;
+    return !shiny || formasShiny.has(id);
+  }
+
+  function ivsDoDitto(x) {
+    const estimativa = x.analise.estimativa;
+    if (estimativa && estimativa.coerente) {
+      const saida = {};
+      for (const c of F.chavesStats) saida[c] = (estimativa.faixas[c].min + estimativa.faixas[c].max) / 2;
+      return saida;
+    }
+    const media = (x.analise.ivTotal ?? 99) / 6;
+    return { hp: media, atk: media, def: media, spAtk: media, spDef: media, speed: media };
+  }
+
+  function melhoresFormasDoDitto(x, alvo, quantos) {
+    const ivs = ivsDoDitto(x);
+    const nivel = x.poke.level || 1;
+    const qualidade = x.poke.quality || 1;
+    const vistos = new Set();
+    const lista = [];
+    for (const especie of dados.especies.values()) {
+      if (vistos.has(especie.name) || !dittoPodeCopiar(especie, x.poke.shiny)) continue;
+      vistos.add(especie.name);
+      const stats = F.calcularStats(F.basesDaEspecie(especie), ivs, nivel, qualidade);
+      const combatente = F.montarCombatente(especie, nivel, stats, [especie.type1, especie.type2]);
+      const resultado = F.avaliarConfronto(combatente, alvo);
+      if (resultado.pontuacao > 0) lista.push({ especie, resultado });
+    }
+    return lista.sort((a, b) => b.resultado.pontuacao - a.resultado.pontuacao).slice(0, quantos);
+  }
+
   function nomeBase(nome) {
     return String(nome).replace(/^(Nightmare|Brave|Hard|Shiny|Elder|Ancient|Enraged|Furious|Dark|Master)\s+/i, "");
   }
@@ -953,16 +992,30 @@
     const fraq = F.fraquezas(especieAlvo.type1, especieAlvo.type2);
     const tiposGolpes = [...new Set(alvoIgual.ataques.map(a => a.type))];
 
-    const meus = analisesDosPokes().map(x => {
+    const todosMeus = analisesDosPokes();
+    const porEspecie = new Map();
+    for (const x of todosMeus) {
       const especie = x.especie;
-      if (!especie || !x.poke.stats || x.poke.isDitto) return null;
+      if (!especie || !x.poke.stats || x.poke.isDitto) continue;
       const meu = F.montarCombatente(especie, x.poke.level || 1, x.poke.stats, [x.poke.type1 || especie.type1, x.poke.type2 || especie.type2]);
-      return { x, especie, resultado: F.avaliarConfronto(meu, alvoNaHunt) };
-    }).filter(Boolean).sort((a, b) => b.resultado.pontuacao - a.resultado.pontuacao).slice(0, 8);
+      const item = { x, especie, resultado: F.avaliarConfronto(meu, alvoNaHunt), iguais: 0 };
+      const atual = porEspecie.get(especie.name);
+      if (!atual) porEspecie.set(especie.name, item);
+      else if (item.resultado.pontuacao > atual.resultado.pontuacao) {
+        item.iguais = atual.iguais + 1;
+        porEspecie.set(especie.name, item);
+      } else atual.iguais++;
+    }
+    const meus = [...porEspecie.values()].sort((a, b) => b.resultado.pontuacao - a.resultado.pontuacao).slice(0, 8);
+    const dittos = todosMeus.filter(x => x.poke.isDitto || x.poke.speciesId === 132).sort((a, b) => (b.poke.level || 0) - (a.poke.level || 0));
+    const dittoPrincipal = dittos[0] || null;
+    const formasDitto = dittoPrincipal ? melhoresFormasDoDitto(dittoPrincipal, alvoNaHunt, 6) : [];
+    const topoDitto = formasDitto.length ? formasDitto[0].resultado.pontuacao : 1;
 
     const agrupados = new Map();
     for (const especie of dados.especies.values()) {
       if (especie.pokeId === especieAlvo.pokeId) continue;
+      if (!visao.contraLendarios && (especie.rarity === "LEGENDARY" || especie.rarity === "MYTHICAL" || naoCopiaveis.has(especie.pokeId))) continue;
       const resultado = F.avaliarConfronto(F.montarCombatente(especie, 100), alvoIgual);
       if (resultado.pontuacao <= 0) continue;
       const chave = `${resultado.pontuacao.toFixed(6)}|${nomeBase(especie.name)}`;
@@ -1006,10 +1059,14 @@
       </div>
       ${Cartao.htmlEfetividade(especieAlvo.type1, especieAlvo.type2, "Golpes contra ele")}
       <div class="nota-lateral">% = quão boa é a escolha (100% = a melhor da lista): conta a rapidez para derrotar e desconta quem cai antes. Etiqueta = quanto aguenta.</div>
+      ${dittoPrincipal ? `
+        <div class="secao">Seu ${esc(dittoPrincipal.analise.nome.replace(/ ⚠.*$/, ""))}: melhores formas</div>
+        <div class="nota-lateral">Nv ${dittoPrincipal.poke.level} · qualidade ${(dittoPrincipal.poke.quality || 0).toFixed(2)} · IV ${dittoPrincipal.analise.ivTotal ?? "?"}. Testando cada Pokémon que ${dittoPrincipal.poke.shiny ? "o Ditto shiny pode copiar (só espécies com forma shiny, sem lendários, Megas, Outland e bosses de Orre)" : "o Ditto pode copiar (sem lendários, Megas, Outland e bosses de Orre)"}, com os IVs e a qualidade dele.</div>
+        ${formasDitto.length ? `<div class="lista">${formasDitto.map(f => linhaResultado(`Virar ${f.especie.name}`, f.especie, dittoPrincipal.poke.shiny, f.resultado, `Nv ${dittoPrincipal.poke.level}`, topoDitto)).join("")}</div>` : `<div class="vazio" style="padding:14px">Nenhuma forma ajuda contra ele.</div>`}` : ""}
       <div class="secao">Seus melhores contra ele</div>
-      ${meus.length ? `<div class="lista">${meus.map(m => linhaResultado(m.x.analise.nome, m.especie, m.x.poke.shiny, m.resultado, `Nv ${m.x.poke.level}${m.x.poke.team ? " · time" : ""}`, topoMeus)).join("")}</div>` : `<div class="vazio" style="padding:14px">Abra a mochila no jogo para eu conhecer seus Pokémons.</div>`}
+      ${meus.length ? `<div class="lista">${meus.map(m => linhaResultado(m.x.analise.nome + (m.iguais ? ` (+${m.iguais} iguais)` : ""), m.especie, m.x.poke.shiny, m.resultado, `Nv ${m.x.poke.level}${m.x.poke.team ? " · time" : ""}`, topoMeus)).join("")}</div>` : `<div class="vazio" style="padding:14px">Abra a mochila no jogo para eu conhecer seus Pokémons.</div>`}
       <div class="secao">Melhores espécies do jogo</div>
-      <div class="nota-lateral">Comparando todos no Nv 100, IV médio e qualidade 1,00.</div>
+      <div class="nota-lateral">Comparando todos no Nv 100, IV médio e qualidade 1,00. <button class="chip ${visao.contraLendarios ? "ativo" : ""}" data-acao="alternarLendarios">${visao.contraLendarios ? "Com lendários" : "Sem lendários"}</button></div>
       <div class="lista">${especies.map(e => linhaResultado(e.especie.name + (e.variantes.length ? ` (+${e.variantes.length})` : ""), e.especie, false, e.resultado, esc(nomesRaridade[e.especie.rarity] || ""), topoEspecies)).join("")}</div>
     `;
   }
@@ -1521,6 +1578,10 @@
         } catch (erro) {
           avisar("Meu Discord", "Skymer#9220", "info");
         }
+        break;
+      case "alternarLendarios":
+        visao.contraLendarios = !visao.contraLendarios;
+        renderizar(false);
         break;
       case "limparShinies":
         registroShinies = [];

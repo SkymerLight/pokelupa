@@ -116,6 +116,9 @@
     "Ataca com": ["Attacks with", "Ataca con"],
     "Golpes contra ele": ["Moves against it", "Ataques contra él"],
     "Muito efetivo": ["Super effective", "Muy efectivo"],
+    "Sem lendários": ["No legendaries", "Sin legendarios"],
+    "Com lendários": ["With legendaries", "Con legendarios"],
+    "Nenhuma forma ajuda contra ele.": ["No form helps against it.", "Ninguna forma sirve contra él."],
     "Dropa de:": ["Dropped by:", "Lo suelta:"],
     "A PokeLupa só lê o que o jogo já manda para o seu navegador (mochila, Pokémons e catálogo). Nada é enviado para fora e nenhuma ação é feita por você. IVs por atributo são deduzidos da fórmula do jogo:": ["PokeLupa only reads what the game already sends to your browser (bag, Pokémon and catalog). Nothing is sent out and no action is taken for you. Per-stat IVs come from the game's formula:", "PokeLupa solo lee lo que el juego ya envía a tu navegador (mochila, Pokémon y catálogo). No se envía nada afuera y no se hace ninguna acción por ti. Los IVs por atributo salen de la fórmula del juego:"],
     ", com exp 0,95 para HP/Vel e 0,8 para os outros. A nota é o potencial: o poder no Nv 100 em % do melhor exemplar possível da mesma espécie. A qualidade entra duas vezes no poder, por isso pesa quase o dobro do IV.": [", with exp 0.95 for HP/Spe and 0.8 for the others. The grade is the potential: power at Lv 100 as % of the best possible specimen of the same species. Quality counts twice in power, so it weighs almost twice the IV.", ", con exp 0,95 para HP/Vel y 0,8 para los demás. La nota es el potencial: el poder en Nv 100 en % del mejor ejemplar posible de la misma especie. La calidad entra dos veces en el poder, por eso pesa casi el doble que el IV."],
@@ -311,6 +314,9 @@
     [/^(\S+): potencial ([\d.]+)% do melhor (.+) de captura selvagem$/, ["$1: potential $2% of the best wild $3", "$1: potencial $2% del mejor $3 salvaje"]],
     [/^Quão boa é a escolha comparada ao 1º da lista \(rapidez para derrotar, com desconto se ele cai antes\) · ele não consegue te ferir$/, ["How good the pick is vs the 1st on the list (speed to win, penalized if it faints first) · it can't hurt you", "Qué tan buena es la elección frente al 1º de la lista (rapidez para derrotar, penalizada si cae antes) · no puede herirte"]],
     [/^Quão boa é a escolha comparada ao 1º da lista \(rapidez para derrotar, com desconto se ele cai antes\) · aguenta ~(\d+) dele antes de cair$/, ["How good the pick is vs the 1st on the list (speed to win, penalized if it faints first) · survives ~$1 of them before fainting", "Qué tan buena es la elección frente al 1º de la lista (rapidez para derrotar, penalizada si cae antes) · aguanta ~$1 antes de caer"]],
+    [/^Virar (.+)$/, ["Become $1", "Convertirse en $1"]],
+    [/^(.+) \(\+(\d+) iguais\)$/, ["$1 (+$2 same)", "$1 (+$2 iguales)"]],
+    [/^Seu (.+): melhores formas$/, ["Your $1: best forms", "Tu $1: mejores formas"]],
     [/^Não deixa marcar/, null]
   ];
 
