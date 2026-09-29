@@ -22,6 +22,7 @@
     </a>
     <nav>
       <a href="#analisador">Analisador</a>
+      <a href="#rotas">Rotas</a>
       <a href="#extensao">Extensão</a>
       <a href="#loot">Tabela de loot</a>
       <a href="#como-funciona">Como funciona</a>
@@ -97,6 +98,17 @@
 
         <div class="coluna resultado">
           <div id="cartaoResultado" class="hospede-cartao"></div>
+          <div class="melhores-hunts" id="melhoresHunts" hidden>
+            <div class="melhores-topo">
+              <h3>Melhores hunts para ele</h3>
+              <div class="seletor-modo" data-grupo="modoAnalise">
+                <button type="button" class="chip-site ativo" data-valor="xp">⚡ XP</button>
+                <button type="button" class="chip-site" data-valor="lucro">💰 Lucro</button>
+                <button type="button" class="chip-site" data-valor="balanceado">⚖️ Balanceado</button>
+              </div>
+            </div>
+            <div id="listaMelhoresHunts"></div>
+          </div>
           <div class="explicacao">
             <h3>Como a nota é calculada</h3>
             <p>O jogo sorteia cada IV entre 1 e 32 e a qualidade segue uma tabela de chances (a maioria sai entre 1,00 e 1,10; acima de 1,80 só com breeding, shiny ou evento). A PokeLupa inverte a fórmula de atributos do jogo para achar o IV de cada stat. A nota é o <b>potencial</b>: o poder que ele teria no Nv 100 em % do melhor exemplar possível da mesma espécie (IV 192 e qualidade 1,80). Fonte: <a href="https://poke.idleworld.online/pokepedia/systems/power" target="_blank" rel="noopener">Pokepédia: Power</a>.</p>
@@ -114,9 +126,50 @@
       </div>
     </section>
 
-    <section id="extensao" class="bloco">
+    <section id="rotas" class="bloco">
       <div class="bloco-titulo">
         <span class="numero">02</span>
+        <div>
+          <h2>Simulador de rotas</h2>
+          <p>Escolha o Pokémon e de qual nível até qual. O simulador testa todas as hunts do jogo em cada nível e monta o caminho mais rápido de XP, o que dá mais gold ou um meio-termo.</p>
+        </div>
+      </div>
+
+      <div class="rotas">
+        <form class="formulario rotas-form" id="formRota" autocomplete="off">
+          <label class="largo">Pokémon
+            <input list="listaEspecies" name="especie" placeholder="Ex.: Charizard" value="Charizard">
+          </label>
+          <label>Do nível<input type="number" name="de" min="1" value="1"></label>
+          <label>Até o nível<input type="number" name="ate" min="2" value="100"></label>
+          <label>IV total<input type="number" name="ivTotal" min="6" max="192" placeholder="99"></label>
+          <label>Qualidade<input type="text" inputmode="decimal" name="qualidade" placeholder="1,00"></label>
+          <div class="largo seletor-modo" data-grupo="modo">
+            <span>Prioridade</span>
+            <button type="button" class="chip-site ativo" data-valor="xp">⚡ XP</button>
+            <button type="button" class="chip-site" data-valor="lucro">💰 Lucro</button>
+            <button type="button" class="chip-site" data-valor="balanceado">⚖️ Balanceado</button>
+          </div>
+          <div class="largo seletor-modo" data-grupo="areas">
+            <span>Regiões</span>
+            <button type="button" class="chip-site ativo" data-valor="kanto">Kanto</button>
+            <button type="button" class="chip-site ativo" data-valor="outland">Outland</button>
+            <button type="button" class="chip-site ativo" data-valor="orre">Orre</button>
+            <button type="button" class="chip-site ativo" data-valor="nightmare">Nightmare</button>
+          </div>
+          <button type="submit" class="botao ouro largo">Simular rota</button>
+        </form>
+
+        <div class="rotas-resultado" id="resultadoRota">
+          <div class="vazio-rota">Preencha ao lado e clique em <b>Simular rota</b>.</div>
+        </div>
+      </div>
+      <p class="aviso-estimativa">Os números são uma <b>estimativa</b>: o simulador usa os atributos, os golpes, a efetividade de tipos, o XP e a tabela de drops de cada Pokémon do jogo, calibrados com hunts reais medidas pela extensão. Não considera boosts, VIP, eventos, itens segurados nem golpes em área. Quando a comunidade já mediu uma hunt, o valor real aparece ao lado.</p>
+    </section>
+
+    <section id="extensao" class="bloco">
+      <div class="bloco-titulo">
+        <span class="numero">03</span>
         <div>
           <h2>A extensão</h2>
           <p>Ela lê o que o jogo já manda pro seu navegador. Sem print, sem rolar a mochila, sem programa extra.</p>
@@ -174,7 +227,7 @@
 
     <section id="loot" class="bloco">
       <div class="bloco-titulo">
-        <span class="numero">03</span>
+        <span class="numero">04</span>
         <div>
           <h2>Tabela de loot</h2>
           <p>Preço de venda aos NPCs de todos os itens do jogo. Pedras vão pro Flint, o resto pro Mark.</p>
@@ -190,7 +243,7 @@
 
     <section id="como-funciona" class="bloco">
       <div class="bloco-titulo">
-        <span class="numero">04</span>
+        <span class="numero">05</span>
         <div>
           <h2>Como a PokeLupa calcula</h2>
           <p>Tudo sai das regras que estão no próprio código do jogo. Nada de chute: a mesma conta que o servidor faz, só que ao contrário.</p>
@@ -279,7 +332,7 @@
 
     <section id="duvidas" class="bloco">
       <div class="bloco-titulo">
-        <span class="numero">05</span>
+        <span class="numero">06</span>
         <div><h2>Dúvidas</h2></div>
       </div>
       <div class="duvidas">
@@ -314,6 +367,7 @@
   <script src="extensao/nucleo/formulas.js"></script>
   <script src="extensao/nucleo/cartao.js"></script>
   <script src="extensao/conteudo/estilos.js"></script>
+  <script src="site/rotas.js"></script>
   <script src="site/app.js"></script>
 </body>
 </html>

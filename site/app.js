@@ -21,6 +21,9 @@
   let poderLido = null;
   const especiesPorNome = new Map();
   let especies = [];
+  let baseRotas = null;
+  let medidasComunidade = new Map();
+  let ultimoPokeAnalisado = null;
   let itens = [];
 
   document.querySelectorAll('[data-link="repositorio"]').forEach(a => { a.href = repositorio; });
@@ -128,6 +131,8 @@
       power: poderLido || undefined
     };
     desenharResultado(envolver(poke, especie));
+    ultimoPokeAnalisado = { especie, nivel, qualidade, ivTotal: ivTotal || undefined, stats: completos ? stats : null };
+    desenharMelhoresHunts();
   }
 
   formulario.addEventListener("input", evento => {
@@ -459,6 +464,114 @@
     $("#qtdLoot").addEventListener(tipo, desenharTabela);
   });
 
+  function formatarHoras(segundos) {
+    const horas = segundos / 3600;
+    if (!Number.isFinite(horas)) return "—";
+    if (horas < 1) return `${Math.max(1, Math.round(horas * 60))} min`;
+    if (horas < 48) return `${Math.floor(horas)}h ${String(Math.round((horas % 1) * 60)).padStart(2, "0")}min`;
+    return `${(horas / 24).toFixed(1).replace(".", ",")} dias`;
+  }
+
+  function lerModo(grupo) {
+    return document.querySelector(`[data-grupo="${grupo}"] .chip-site.ativo`)?.dataset.valor || "xp";
+  }
+
+  function lerAreas() {
+    return new Set([...document.querySelectorAll('[data-grupo="areas"] .chip-site.ativo')].map(b => b.dataset.valor));
+  }
+
+  function htmlMedido(slug) {
+    const medida = medidasComunidade.get(slug);
+    if (!medida || medida.segundos < 1800) return "";
+    return `<span class="medido" title="Média real enviada por ${medida.jogadores} jogador(es), ${formatarHoras(medida.segundos)} de dados">medido: ${F.formatarCurto(medida.xp / medida.segundos * 3600)} XP/h · ${F.formatarCurto((medida.loot + medida.capturasGold - medida.gastos) / medida.segundos * 3600)} gold/h</span>`;
+  }
+
+  function simularRota(evento) {
+    if (evento) evento.preventDefault();
+    const formulario = document.getElementById("formRota");
+    const saida = document.getElementById("resultadoRota");
+    if (!baseRotas) {
+      saida.innerHTML = `<div class="vazio-rota">Carregando dados…</div>`;
+      return;
+    }
+    const especie = baseRotas.porNome.get(PokeLupaRotas.normalizar(formulario.elements.especie.value));
+    const de = Math.max(1, Number(formulario.elements.de.value) || 1);
+    const ate = Math.max(de + 1, Number(formulario.elements.ate.value) || de + 1);
+    if (!especie) {
+      saida.innerHTML = `<div class="vazio-rota">Não achei esse Pokémon. Escolha um nome da lista.</div>`;
+      return;
+    }
+    if (ate - de > 600) {
+      saida.innerHTML = `<div class="vazio-rota">Escolha um intervalo de até 600 níveis.</div>`;
+      return;
+    }
+    const qualidade = Number(String(formulario.elements.qualidade.value || "1").replace(",", ".")) || 1;
+    const ivTotal = Number(formulario.elements.ivTotal.value) || 99;
+    const modo = lerModo("modo");
+    const areas = lerAreas();
+    const rota = PokeLupaRotas.planejarRota(baseRotas, especie, de, ate, { modo, qualidade, ivTotal, areas });
+    if (!rota.trechos.length) {
+      saida.innerHTML = `<div class="vazio-rota">Nenhuma hunt dessas regiões serve para ${Cartao.esc(especie.name)} no Nv ${de}.</div>`;
+      return;
+    }
+    const nomesModo = { xp: "mais XP", lucro: "mais lucro", balanceado: "balanceada" };
+    saida.innerHTML = `
+      <div class="rota-resumo">
+        <div><span>Rota ${nomesModo[modo]}</span><b>${Cartao.esc(especie.name)} Nv ${de} → ${rota.travouEm || ate}</b></div>
+        <div><span>Tempo total</span><b>${formatarHoras(rota.totalSegundos)}</b></div>
+        <div><span>Gold no caminho</span><b>${F.formatarCurto(rota.totalGold)}</b></div>
+      </div>
+      <ol class="rota-trechos">
+        ${rota.trechos.map(t => `
+          <li>
+            <div class="rota-niveis">Nv ${t.de}–${t.ate}</div>
+            <div class="rota-hunt">
+              <b>${Cartao.esc(t.hunt.nome)}</b>
+              <span class="area area-${t.hunt.area}">${t.hunt.area}</span>
+              <small>hunt Nv ${t.hunt.nivel} · ${formatarHoras(t.segundos)}</small>
+              ${htmlMedido(t.hunt.slug)}
+            </div>
+            <div class="rota-numeros"><span>${F.formatarCurto(t.xpHora)} XP/h</span><span>${F.formatarCurto(t.goldHora)} gold/h</span></div>
+          </li>`).join("")}
+      </ol>
+      ${rota.travouEm ? `<div class="vazio-rota">A partir do Nv ${rota.travouEm} nenhuma hunt dessas regiões é segura para ele.</div>` : ""}
+    `;
+  }
+
+  function desenharMelhoresHunts() {
+    const caixa = document.getElementById("melhoresHunts");
+    const lista = document.getElementById("listaMelhoresHunts");
+    if (!ultimoPokeAnalisado || !baseRotas) {
+      caixa.hidden = true;
+      return;
+    }
+    const { especie, nivel, qualidade, ivTotal, stats } = ultimoPokeAnalisado;
+    const especieRotas = baseRotas.porNome.get(PokeLupaRotas.normalizar(especie.name)) || especie;
+    const ranking = PokeLupaRotas.rankear(baseRotas, especieRotas, nivel, { modo: lerModo("modoAnalise"), qualidade, ivTotal, stats, nivelDosStats: nivel }).slice(0, 10);
+    caixa.hidden = false;
+    lista.innerHTML = ranking.length ? ranking.map((r, i) => `
+      <div class="hunt-sugerida">
+        <span class="posicao-hunt">${i + 1}</span>
+        <div><b>${Cartao.esc(r.hunt.nome)}</b> <span class="area area-${r.hunt.area}">${r.hunt.area}</span><small>hunt Nv ${r.hunt.nivel} · ${Math.round(r.killsHora)} kills/h</small>${htmlMedido(r.hunt.slug)}</div>
+        <div class="rota-numeros"><span>${F.formatarCurto(r.xpHora)} XP/h</span><span>${F.formatarCurto(r.goldHora)} gold/h</span></div>
+      </div>`).join("") : `<div class="vazio-rota">Nenhuma hunt segura para ele nesse nível.</div>`;
+  }
+
+  document.addEventListener("click", evento => {
+    const chip = evento.target.closest(".chip-site");
+    if (!chip) return;
+    const grupo = chip.closest("[data-grupo]");
+    if (grupo.dataset.grupo === "areas") {
+      chip.classList.toggle("ativo");
+      if (!grupo.querySelector(".ativo")) chip.classList.add("ativo");
+    } else {
+      grupo.querySelectorAll(".chip-site").forEach(b => b.classList.toggle("ativo", b === chip));
+    }
+    if (grupo.dataset.grupo === "modoAnalise") desenharMelhoresHunts();
+    else if (document.querySelector("#resultadoRota .rota-trechos")) simularRota();
+  });
+  document.getElementById("formRota").addEventListener("submit", simularRota);
+
   async function iniciar() {
     const [listaEspecies, listaItens] = await Promise.all([
       fetch("site/dados/especies.json").then(r => r.json()),
@@ -466,6 +579,13 @@
     ]);
     especies = listaEspecies;
     itens = listaItens;
+    fetch("site/dados/hunts.json").then(r => r.json()).then(hunts => {
+      baseRotas = PokeLupaRotas.prepararDados(especies, itens, hunts);
+      desenharMelhoresHunts();
+    }).catch(() => {});
+    fetch("api/hunts").then(r => r.json()).then(dados => {
+      for (const hunt of dados.hunts || []) medidasComunidade.set(hunt.slug, hunt);
+    }).catch(() => {});
     for (const especie of especies) if (!especiesPorNome.has(especie.name.toLowerCase()) || especie.pokeId <= 1025) especiesPorNome.set(especie.name.toLowerCase(), especie);
     for (const especie of especies) {
       if (especie.pokeId <= 1025) continue;

@@ -405,6 +405,10 @@ select.busca option { background: var(--fundo-2); }
 .bandeira.ativa { opacity: 1; border-color: var(--ouro); box-shadow: 0 0 0 2px rgba(231,194,106,0.25); }
 .bandeira svg { display: block; border-radius: 3px; }
 
+.form select.busca { width: 100%; height: 34px; }
+.linha-caixa { display: flex !important; align-items: center; gap: 8px; text-transform: none !important; letter-spacing: 0 !important; font-size: 12px !important; color: var(--texto-2) !important; }
+.linha-caixa input { width: auto !important; height: auto !important; accent-color: var(--ouro); }
+
 @media (max-width: 520px) {
   .painel { width: auto; left: 8px; right: 8px; top: 8px; bottom: 8px; }
 }

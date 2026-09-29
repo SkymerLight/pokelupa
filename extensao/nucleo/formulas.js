@@ -553,7 +553,23 @@
     return { texto: "Cai antes", cor: "#f87171" };
   }
 
+  function xpBase150(nivel) {
+    return nivel <= 1 ? 0 : Math.round(50 / 3 * (nivel ** 3 - 6 * nivel ** 2 + 17 * nivel - 12));
+  }
+
+  function xpTotalParaNivel(nivel) {
+    const inteiro = Math.floor(nivel);
+    if (inteiro <= 150) return xpBase150(inteiro);
+    const extra = inteiro - 150;
+    if (extra <= 100) {
+      const t = extra;
+      return Math.round(xpBase150(150) + (t <= 0 ? 0 : 0.5 * (t * (t + 1) / 2) ** 2 + t * (t + 1) * (2 * t + 1) / 6 * 197.5 + t * (t + 1) / 2 * 25629 + 1087900 * t));
+    }
+    return Math.round(xpTotalParaNivel(250) + 2 * (xpBase150(inteiro) - xpBase150(250)));
+  }
+
   raiz.PokeLupaFormulas = {
+    xpTotalParaNivel,
     gruposEfetividade,
     potencialDePoder,
     poderNoNivel,

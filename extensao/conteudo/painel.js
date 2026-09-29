@@ -22,6 +22,8 @@
     bancoClas: "pokelupa:bancoClas",
     pokesMercado: "pokelupa:pokesMercado",
     hunts: "pokelupa:hunts",
+    instalacao: "pokelupa:instalacao",
+    missaoEnviada: "pokelupa:missaoEnviada",
     trechoHunt: "pokelupa:trechoHunt"
   };
   const enderecoSite = (() => {
@@ -41,7 +43,8 @@
     somShiny: true,
     lancadorVisivel: true,
     posicaoLancador: null,
-    idioma: null
+    idioma: null,
+    compartilhar: true
   };
   const nomesCategorias = {
     loot: "Loot", stone: "Pedra", heal: "Cura", revive: "Reviver", clan: "Clã", misc: "Diverso",
@@ -66,6 +69,11 @@
   let bancoHunts = { hunts: {} };
   let trechoHunt = null;
   let bonusAtivos = { boosts: [], events: [] };
+  let mapaHunts = {};
+  let idInstalacao = null;
+  let huntsComunidade = null;
+  let huntsComunidadeEm = 0;
+  let missoesDoServidor = {};
   let pokesMercadoEm = 0;
 
   const dados = {
@@ -96,6 +104,11 @@
     buscaHunt: "",
     regiaoHunt: "todas",
     ordemHunt: "xp",
+    fonteHunt: "minhas",
+    calcPoke: "",
+    calcNivel: "",
+    calcXpHora: "",
+    calcAfk: false,
     huntAberta: null,
     contraLendarios: false,
     claVisto: "",
@@ -345,7 +358,7 @@
     };
     if (infoCla && infoCla.tarefa) {
       for (const item of infoCla.tarefa.itens) if (item.precisa > 0) somar(item.id, item.precisa, "clã");
-      const ranksDoBanco = reservasUsuario.proximosRanks && bancoClas && bancoClas.clas ? bancoClas.clas[infoCla.cla] || {} : {};
+      const ranksDoBanco = reservasUsuario.proximosRanks ? { ...((bancoClas && bancoClas.clas && bancoClas.clas[infoCla.cla]) || {}), ...(missoesDoServidor[infoCla.cla] || {}) } : {};
       for (const rank in ranksDoBanco) {
         if (Number(rank) <= Number(infoCla.tarefa.rank)) continue;
         for (const item of ranksDoBanco[rank].itens || []) somar(item.id, item.qtd, "clã");
@@ -1084,11 +1097,65 @@
   const minimoTrecho = 120;
 
   function regiaoDaHunt(slug, nome) {
+    const doMapa = mapaHunts[slug];
+    if (doMapa && doMapa.area) return doMapa.area.charAt(0).toUpperCase() + doMapa.area.slice(1);
     const texto = `${slug} ${nome || ""}`.toLowerCase();
     if (texto.includes("nightmare")) return "Nightmare";
     if (texto.includes("outland")) return "Outland";
     if (texto.includes("orre")) return "Orre";
     return "Kanto";
+  }
+
+  async function carregarMapa() {
+    try {
+      const resposta = await fetch("/api/game/map-markers", { cache: "force-cache" }).then(r => r.json());
+      for (const hunt of resposta.hunts || []) mapaHunts[hunt.slug] = { nome: hunt.name, area: hunt.area, nivel: hunt.level };
+      if (visao.aba === "hunts") renderizar(false);
+    } catch (erro) {}
+  }
+
+  function urlApi(caminho) {
+    return `${enderecoSite}api/${caminho}`;
+  }
+
+  function enviarAoBanco(caminho, corpo) {
+    if (!ajustes.compartilhar || !idInstalacao) return;
+    try {
+      fetch(urlApi(caminho), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...corpo, instalacao: idInstalacao }) }).catch(() => {});
+    } catch (erro) {}
+  }
+
+  function enviarTrechoAoBanco(trecho, delta, tempo) {
+    const info = mapaHunts[trecho.slug] || {};
+    enviarAoBanco("hunt", {
+      slug: trecho.slug,
+      nome: info.nome || trecho.nome || null,
+      area: info.area || null,
+      nivelHunt: info.nivel || null,
+      segundos: tempo,
+      xp: delta.xp, xpBase: delta.xpBase ?? delta.xp, pokeXp: delta.pokeXp || 0, pokeXpBase: delta.pokeXpBase || 0,
+      kills: delta.kills, loot: delta.loot, capturasGold: delta.capturasGold || 0, gastos: delta.gastos || 0, temGastos: !!delta.temGastos,
+      poke: trecho.lider ? { nome: trecho.lider.nome, forma: trecho.lider.forma, nivel: trecho.lider.nivel } : null
+    });
+  }
+
+  async function carregarHuntsComunidade(forcar) {
+    if (!forcar && huntsComunidade && Date.now() - huntsComunidadeEm < 120000) return;
+    try {
+      const resposta = await fetch(`${urlApi("hunts")}?t=${Math.floor(Date.now() / 120000)}`).then(r => r.json());
+      huntsComunidade = resposta.pronto ? resposta.hunts || [] : null;
+      huntsComunidadeEm = Date.now();
+      if (visao.aba === "hunts") renderizar(false);
+    } catch (erro) {}
+  }
+
+  async function carregarMissoesDoServidor() {
+    try {
+      const resposta = await fetch(urlApi("missao")).then(r => r.json());
+      missoesDoServidor = resposta.clas || {};
+      if (visao.aba === "cla") renderizar(false);
+      enviarMarcacoes();
+    } catch (erro) {}
   }
 
   function nomeBonitoDaHunt(slug) {
@@ -1149,9 +1216,11 @@
     hunt.segundos += tempo;
     hunt.trechos += 1;
     hunt.atualizadoEm = Date.now();
+    enviarTrechoAoBanco(trecho, delta, tempo);
     for (const id in delta.itens) hunt.itens[id] = (hunt.itens[id] || 0) + delta.itens[id];
     if (trecho.lider) {
       const poke = hunt.porPoke[trecho.lider.chave] || (hunt.porPoke[trecho.lider.chave] = { ...trecho.lider, segundos: 0, xp: 0, loot: 0, gastos: 0, capturasGold: 0, kills: 0 });
+      poke.pokeXp = (poke.pokeXp || 0) + (delta.pokeXp || 0);
       poke.nivel = trecho.lider.nivel;
       poke.segundos += tempo;
       for (const campo of ["xp", "loot", "gastos", "capturasGold", "kills"]) poke[campo] += delta[campo];
@@ -1194,7 +1263,7 @@
       return;
     }
     fecharTrecho();
-    trechoHunt = { slug, nome: nome || (bancoHunts.hunts[slug] && bancoHunts.hunts[slug].nome) || null, inicio: Date.now(), base: null, ultimo: null, lider: liderAtual(), kills: novoAcumuladoDeKills() };
+    trechoHunt = { slug, nome: nome || (mapaHunts[slug] && mapaHunts[slug].nome) || (bancoHunts.hunts[slug] && bancoHunts.hunts[slug].nome) || null, inicio: Date.now(), base: null, ultimo: null, lider: liderAtual(), kills: novoAcumuladoDeKills() };
     gravar(chaves.trechoHunt, trechoHunt);
     setTimeout(() => pedirAoJogo("lerAnalisador"), 2500);
     if (visao.aba === "hunts") renderizar(false);
@@ -1272,7 +1341,11 @@
   }
 
   function montarHunts() {
-    const lista = Object.entries(bancoHunts.hunts).map(([slug, hunt]) => ({ slug, ...hunt }));
+    const comunidade = visao.fonteHunt === "comunidade";
+    if (comunidade) carregarHuntsComunidade(false);
+    const minhas = Object.entries(bancoHunts.hunts).map(([slug, hunt]) => ({ slug, ...hunt, nome: (mapaHunts[slug] && mapaHunts[slug].nome) || hunt.nome, regiao: regiaoDaHunt(slug, hunt.nome) }));
+    const daComunidade = (huntsComunidade || []).map(h => ({ ...h, regiao: h.area.charAt(0).toUpperCase() + h.area.slice(1), itens: {}, porPoke: {}, pokesComunidade: h.pokes, bonus: {} }));
+    const lista = comunidade ? daComunidade : minhas;
     const busca = semAcento(visao.buscaHunt);
     const ordens = {
       xp: h => porHoraDe(h.xp, h.segundos),
@@ -1289,6 +1362,11 @@
       .sort((a, b) => ordens[visao.ordemHunt](b) - ordens[visao.ordemHunt](a));
     corpo.innerHTML = `
       ${htmlTrechoAtual()}
+      <div class="alternador" style="margin-top:10px">
+        <button class="${!comunidade ? "ativo" : ""}" data-fonte-hunt="minhas">Minhas hunts</button>
+        <button class="${comunidade ? "ativo" : ""}" data-fonte-hunt="comunidade">Comunidade</button>
+      </div>
+      ${comunidade ? `<div class="nota-lateral">${huntsComunidade === null ? "Banco da comunidade ainda não está ligado ou não respondeu." : `Médias enviadas por quem usa a PokeLupa (anônimo). ${huntsComunidade.length} hunts.`}</div>` : ""}
       <div class="ferramentas">
         <input class="busca" data-campo="buscaHunt" placeholder="Buscar hunt ou Pokémon…" value="${esc(visao.buscaHunt)}">
         <select class="busca" data-campo="ordemHunt">${Object.entries(rotulos).map(([v, t]) => `<option value="${v}" ${visao.ordemHunt === v ? "selected" : ""}>${t}</option>`).join("")}</select>
@@ -1303,7 +1381,7 @@
           return `
             <div class="item-linha hunt-linha" data-hunt="${esc(h.slug)}">
               <div class="icone regiao-${esc(h.regiao.toLowerCase())}">${esc(h.regiao.slice(0, 2).toUpperCase())}</div>
-              <div class="meio"><b>${esc(h.nome)}</b><span>${esc(h.regiao)} · ${duracao(h.segundos * 1000)} em ${h.trechos} trecho${h.trechos === 1 ? "" : "s"}${pouco ? " · poucos dados" : ""}</span></div>
+              <div class="meio"><b>${esc(h.nome)}</b><span>${esc(h.regiao)}${h.nivel ? ` · Nv ${h.nivel}` : mapaHunts[h.slug] && mapaHunts[h.slug].nivel ? ` · Nv ${mapaHunts[h.slug].nivel}` : ""} · ${duracao(h.segundos * 1000)}${h.jogadores ? ` · ${h.jogadores} jogador${h.jogadores === 1 ? "" : "es"}` : ` em ${h.trechos} trecho${h.trechos === 1 ? "" : "s"}`}${pouco ? " · poucos dados" : ""}</span></div>
               <div class="fim"><b class="num">${visao.ordemHunt === "tempo" ? duracao(h.segundos * 1000) : F.formatarCurto(ordens[visao.ordemHunt](h))}</b><span>${rotulos[visao.ordemHunt]}</span></div>
               ${aberta ? `<div class="expandido detalhe-hunt">
                 <div class="grade">
@@ -1315,13 +1393,78 @@
                 ${Object.keys(h.bonus || {}).length ? `<div class="nota-lateral">Bônus de XP vistos: ${Object.entries(h.bonus).sort((a, b) => b[1] - a[1]).map(([parte, valor]) => `${esc(nomeDoBonus(parte))} ${Math.round(valor / Math.max(1, h.xpBase || h.xp) * 100)}%`).join(" · ")}</div>` : ""}
                 ${h.segundosComGastos < h.segundos * 0.8 ? `<div class="nota-lateral">Gastos e capturas só entram quando o analisador de hunt do jogo está aberto.</div>` : ""}
                 ${drops.length ? `<div class="efetividade-titulo" style="margin-top:10px">Drops que mais renderam</div><div class="linhas">${drops.map(d => `<div class="linha"><span>${esc(d.item.name)}</span><b class="num">${F.formatarCurto(porHoraDe(d.qtd, h.segundos))}/h</b></div>`).join("")}</div>` : ""}
+                ${h.pokesComunidade && h.pokesComunidade.length ? `<div class="efetividade-titulo" style="margin-top:10px">Por Pokémon (comunidade)</div><div class="linhas">${h.pokesComunidade.map(p => `<div class="linha"><span>${esc(p.nome)}${p.forma ? ` <small class="fraco">virou ${esc(p.forma)}</small>` : ""}${p.faixaNivel !== null ? ` <small class="fraco">Nv ${p.faixaNivel}–${p.faixaNivel + 49}</small>` : ""} <small class="fraco">${duracao(p.segundos * 1000)}</small></span><b class="num">${F.formatarCurto(porHoraDe(p.xp, p.segundos))} XP/h</b></div>`).join("")}</div>` : ""}
                 ${Object.keys(h.porPoke).length ? `<div class="efetividade-titulo" style="margin-top:10px">Por Pokémon</div><div class="linhas">${Object.values(h.porPoke).sort((a, b) => porHoraDe(b.xp, b.segundos) - porHoraDe(a.xp, a.segundos)).map(p => `<div class="linha"><span>${esc(p.nome)}${p.forma ? ` <small class="fraco">virou ${esc(p.forma)}</small>` : ""} <small class="fraco">Nv ${p.nivel} · ${duracao(p.segundos * 1000)}</small></span><b class="num">${F.formatarCurto(porHoraDe(p.xp, p.segundos))} XP/h</b></div>`).join("")}</div>` : ""}
-                <button class="botao secundario pequeno" data-apagar-hunt="${esc(h.slug)}" style="margin-top:10px">Apagar dados desta hunt</button>
+                ${comunidade ? "" : `<button class="botao secundario pequeno" data-apagar-hunt="${esc(h.slug)}" style="margin-top:10px">Apagar dados desta hunt</button>`}
               </div>` : ""}
             </div>`;
         }).join("") : `<div class="vazio" style="padding:18px">${lista.length ? "Nenhuma hunt com esses filtros." : "Nenhuma hunt medida ainda."}</div>`}
       </div>
     `;
+  }
+
+  function xpPorHoraDoPoke(poke) {
+    if (trechoHunt && trechoHunt.kills && trechoHunt.kills.pokeXp > 0 && trechoHunt.lider && trechoHunt.lider.nome === poke.name) {
+      const segundos = Math.round((Date.now() - trechoHunt.inicio) / 1000);
+      if (segundos >= 120) return { valor: porHoraDe(trechoHunt.kills.pokeXp, segundos), origem: `hunt atual (${trechoHunt.nome || nomeBonitoDaHunt(trechoHunt.slug)})` };
+    }
+    let melhor = null;
+    for (const [slug, hunt] of Object.entries(bancoHunts.hunts)) {
+      for (const registro of Object.values(hunt.porPoke || {})) {
+        if (registro.nome !== poke.name || !registro.pokeXp || registro.segundos < 600) continue;
+        const valor = porHoraDe(registro.pokeXp, registro.segundos);
+        if (!melhor || registro.segundos > melhor.segundos) melhor = { valor, segundos: registro.segundos, origem: `média em ${(mapaHunts[slug] && mapaHunts[slug].nome) || hunt.nome}` };
+      }
+    }
+    return melhor;
+  }
+
+  function tempoLegivel(horas) {
+    if (!Number.isFinite(horas)) return "—";
+    if (horas < 1) return `${Math.max(1, Math.round(horas * 60))} min`;
+    if (horas < 48) return `${Math.floor(horas)}h ${String(Math.round((horas % 1) * 60)).padStart(2, "0")}min`;
+    return `${(horas / 24).toFixed(1).replace(".", ",")} dias`;
+  }
+
+  function htmlCalculadora() {
+    const pokes = (estadoJogo.pokes || []).slice().sort((a, b) => (b.team ? 1 : 0) - (a.team ? 1 : 0) || (b.level || 0) - (a.level || 0)).slice(0, 200);
+    if (!pokes.length) return `<div data-ref="calculadora"><div class="secao">Calculadora de nível</div><div class="vazio" style="padding:14px">Abra a mochila no jogo para eu conhecer seus Pokémons.</div></div>`;
+    const lider = pokes.find(p => p.leader) || pokes[0];
+    const poke = pokes.find(p => String(p.id) === String(visao.calcPoke)) || lider;
+    const nivelAtual = poke.level || 1;
+    const alvo = Math.max(nivelAtual + 1, Number(visao.calcNivel) || nivelAtual + 10);
+    const xpAtual = typeof poke.xp === "number" && poke.xp >= F.xpTotalParaNivel(nivelAtual) ? poke.xp : F.xpTotalParaNivel(nivelAtual);
+    const falta = Math.max(0, F.xpTotalParaNivel(alvo) - xpAtual);
+    const automatico = xpPorHoraDoPoke(poke);
+    const manual = Number(String(visao.calcXpHora).replace(/\./g, "").replace(",", "."));
+    const xpHora = manual > 0 ? manual : automatico ? automatico.valor : 0;
+    const efetivo = xpHora * (visao.calcAfk ? 0.5 : 1);
+    const horas = efetivo > 0 ? falta / efetivo : Infinity;
+    const proximos = [];
+    for (let n = nivelAtual; n < Math.min(alvo, nivelAtual + 6); n++) proximos.push({ n, xp: F.xpTotalParaNivel(n + 1) - (n === nivelAtual ? xpAtual : F.xpTotalParaNivel(n)) });
+    return `
+      <div data-ref="calculadora">
+        <div class="secao">Calculadora de nível</div>
+        <div class="form">
+          <label>Pokémon<select class="busca" data-campo="calcPoke">${pokes.map(p => `<option value="${esc(p.id)}" ${p === poke ? "selected" : ""}>${esc(p.name)} · Nv ${p.level}${p.team ? " · time" : ""}</option>`).join("")}</select></label>
+          <div class="dupla">
+            <label>Nível desejado<input type="number" min="${nivelAtual + 1}" data-campo="calcNivel" value="${alvo}"></label>
+            <label>XP por hora<input type="text" inputmode="numeric" data-campo="calcXpHora" placeholder="${automatico ? F.formatarNumero(automatico.valor) : "ex.: 5000000"}" value="${esc(visao.calcXpHora)}"></label>
+          </div>
+          <label class="linha-caixa"><input type="checkbox" data-campo="calcAfk" ${visao.calcAfk ? "checked" : ""}> Jogando AFK (ganho cai 50%)</label>
+        </div>
+        <div class="nota-lateral">${manual > 0 ? "Usando o XP/h que você digitou." : automatico ? `XP/h do Pokémon: ${esc(automatico.origem)}.` : "Cace um pouco com esse Pokémon de líder, ou digite o XP/h."}</div>
+        <div class="grade">
+          <div class="quadro"><span>Falta de XP</span><b class="num">${F.formatarCurto(falta)}</b><i>Nv ${nivelAtual} → ${alvo}</i></div>
+          <div class="quadro"><span>Tempo estimado</span><b class="num">${efetivo > 0 ? tempoLegivel(horas) : "—"}</b><i>${efetivo > 0 ? `a ${F.formatarCurto(efetivo)} XP/h${visao.calcAfk ? " (AFK)" : ""}` : "sem XP/h"}</i></div>
+        </div>
+        <div class="linhas" style="margin-top:8px">${proximos.map(p => `<div class="linha"><span>Nv ${p.n} → ${p.n + 1}</span><b class="num">${F.formatarNumero(p.xp)} XP${efetivo > 0 ? ` <small class="fraco">· ${tempoLegivel(p.xp / efetivo)}</small>` : ""}</b></div>`).join("")}</div>
+      </div>`;
+  }
+
+  function redesenharCalculadora() {
+    const atual = corpo.querySelector('[data-ref="calculadora"]');
+    if (atual) atual.outerHTML = htmlCalculadora();
   }
 
   function montarSessao() {
@@ -1362,6 +1505,7 @@
           <div class="fim"><span>${tempoRelativo(s.em)}</span></div>
         </div>`).join("")}</div>` : ""}
     `;
+    corpo.insertAdjacentHTML("beforeend", htmlCalculadora());
   }
 
   const nomesClas = {
@@ -1387,7 +1531,7 @@
   function missaoFaltaNoBanco() {
     const minha = missaoCapturadaComoBanco();
     if (!minha) return null;
-    const noBanco = bancoClas && bancoClas.clas && bancoClas.clas[minha.cla] && bancoClas.clas[minha.cla][String(minha.rank)];
+    const noBanco = (missoesDoServidor[minha.cla] && missoesDoServidor[minha.cla][String(minha.rank)]) || (bancoClas && bancoClas.clas && bancoClas.clas[minha.cla] && bancoClas.clas[minha.cla][String(minha.rank)]);
     const resumo = m => JSON.stringify([m.itens.map(i => [i.id, i.qtd]), m.capturar.map(c => [c.id, c.qtd]), m.derrotar.map(d => [d.tipo, d.qtd])]);
     if (noBanco && resumo(noBanco) === resumo(minha)) return null;
     return minha;
@@ -1419,7 +1563,7 @@
     const meuCla = infoCla && infoCla.cla;
     const clasBanco = (bancoClas && bancoClas.clas) || {};
     const claVisto = visao.claVisto || meuCla || Object.keys(clasBanco)[0] || "psycraft";
-    const ranksBanco = clasBanco[claVisto] || {};
+    const ranksBanco = { ...(clasBanco[claVisto] || {}), ...(missoesDoServidor[claVisto] || {}) };
     const minha = missaoCapturadaComoBanco();
     const ranks = {};
     for (const r in ranksBanco) ranks[r] = ranksBanco[r];
@@ -1427,17 +1571,18 @@
     const faltando = missaoFaltaNoBanco();
     const numeros = Object.keys(ranks).map(Number).sort((a, b) => a - b);
     const rankAtual = infoCla && infoCla.cla === claVisto && infoCla.tarefa ? Number(infoCla.tarefa.rank) : null;
-    const conhecidos = Object.keys(clasBanco).reduce((s, c) => s + Object.keys(clasBanco[c]).length, 0);
+    const todosClas = new Set([...Object.keys(clasBanco), ...Object.keys(missoesDoServidor)]);
+    const conhecidos = [...todosClas].reduce((soma, c) => soma + new Set([...Object.keys(clasBanco[c] || {}), ...Object.keys(missoesDoServidor[c] || {})]).size, 0);
     return `
       <div class="ferramentas" style="margin-top:0">
         <select class="busca" data-campo="claVisto" style="flex:1">
-          ${Object.keys(nomesClas).map(c => `<option value="${c}" ${c === claVisto ? "selected" : ""}>${nomesClas[c]}${c === meuCla ? " (seu)" : ""} · ${Object.keys(clasBanco[c] || {}).length}/4 ranks</option>`).join("")}
+          ${Object.keys(nomesClas).map(c => `<option value="${c}" ${c === claVisto ? "selected" : ""}>${nomesClas[c]}${c === meuCla ? " (seu)" : ""} · ${new Set([...Object.keys(clasBanco[c] || {}), ...Object.keys(missoesDoServidor[c] || {})]).size}/4 ranks</option>`).join("")}
         </select>
       </div>
       ${meuCla ? "" : `<div class="nota-lateral">Abra a janela de <b>Clãs</b> no jogo uma vez para a PokeLupa saber seu clã e sua próxima missão.</div>`}
       ${[2, 3, 4, 5].map(r => ranks[r] ? htmlMissao(r, ranks[r], r === rankAtual) : `<div class="missao faltando"><div class="missao-topo"><b>Rank ${r}</b><span>${r === rankAtual ? "seu próximo · " : ""}ninguém enviou ainda</span></div><div class="fraco" style="font-size:11.5px">Quem chegar nesse rank com a PokeLupa pode enviar pelo botão "Enviar missão".</div></div>`).join("")}
       ${meuCla === claVisto ? `<div class="alternar" style="border:0;padding-top:6px"><div><b>Incluir os próximos ranks</b><span>Além do seu próximo rank, reserva (e trava, se a chave de cima estiver ligada) os itens dos ranks seguintes do seu clã que já estão no banco.</span></div><button class="chave ${reservasUsuario.proximosRanks ? "ligada" : ""}" data-reserva-alternar="proximosRanks"></button></div>` : `<div class="nota-lateral">Você está vendo ${esc(nomesClas[claVisto])}. Só os itens do <b>seu</b> clã são reservados e travados.</div>`}
-      ${faltando ? `
+      ${faltando && !ajustes.compartilhar ? `
         <div class="contribuir">
           <b>Sua missão de ${esc(nomesClas[faltando.cla])} rank ${faltando.rank} ainda não está no banco</b>
           <span>Mande para todo mundo ver os itens desse rank. Abre uma página do GitHub com tudo preenchido; é só clicar em "Create". Vai só a missão, nada da sua conta.</span>
@@ -1526,6 +1671,7 @@
       ${htmlAlternar("alertaShiny", "Alerta de shiny", "Aviso na tela quando um shiny aparece no seu mapa.")}
       ${htmlAlternar("somShiny", "Som do alerta", "Toca um sininho junto com o aviso de shiny.")}
       ${htmlAlternar("lancadorVisivel", "Botão flutuante", "Se desligar, abra o painel com Alt+L.")}
+      ${htmlAlternar("compartilhar", "Compartilhar com a comunidade", "Envia de forma anônima as médias das suas hunts e as missões de clã para o banco da PokeLupa. Nada da sua conta é enviado.")}
       <div class="secao">Dados</div>
       <div class="linhas">
         <div class="linha"><span>Itens no catálogo</span><b class="num">${dados.itens.size}</b></div>
@@ -1672,6 +1818,15 @@
     if (tipo === "cla") {
       infoCla = { ...carga, em: Date.now() };
       gravar(chaves.cla, infoCla);
+      const completa = missaoCapturadaComoBanco();
+      if (completa && ajustes.compartilhar) {
+        const assinatura = JSON.stringify(completa);
+        ler(chaves.missaoEnviada).then(enviada => {
+          if (enviada === assinatura) return;
+          enviarAoBanco("missao", completa);
+          gravar(chaves.missaoEnviada, assinatura);
+        });
+      }
       aoMudarDados("cla");
       return;
     }
@@ -1735,6 +1890,14 @@
       renderizar(true);
       retraduzir();
       enviarMarcacoes();
+      return;
+    }
+    const fonteHunt = evento.target.closest("[data-fonte-hunt]");
+    if (fonteHunt) {
+      visao.fonteHunt = fonteHunt.dataset.fonteHunt;
+      visao.huntAberta = null;
+      if (visao.fonteHunt === "comunidade") carregarHuntsComunidade(true);
+      renderizar(false);
       return;
     }
     const huntBotao = evento.target.closest("[data-regiao-hunt],[data-apagar-hunt],[data-hunt]");
@@ -1907,6 +2070,7 @@
   });
 
   let temporizadorUnidades = 0;
+  let temporizadorCalculadora = 0;
 
   function salvarReservas() {
     gravar(chaves.reservas, reservasUsuario);
@@ -1926,6 +2090,21 @@
     } else if (campo.dataset.campo === "ordemPokes") {
       visao.ordemPokes = campo.value;
       desenharListaPokes();
+    } else if (campo.dataset.campo === "calcNivel" || campo.dataset.campo === "calcXpHora") {
+      visao[campo.dataset.campo] = campo.value;
+      clearTimeout(temporizadorCalculadora);
+      temporizadorCalculadora = setTimeout(() => {
+        const posicao = campo.selectionStart;
+        const nome = campo.dataset.campo;
+        redesenharCalculadora();
+        const novo = corpo.querySelector(`[data-campo="${nome}"]`);
+        if (novo) {
+          novo.focus();
+          try {
+            novo.setSelectionRange(posicao, posicao);
+          } catch (erro) {}
+        }
+      }, 400);
     } else if (campo.dataset.campo === "buscaHunt") {
       visao.buscaHunt = campo.value;
       const posicao = campo.selectionStart;
@@ -1955,6 +2134,17 @@
     }
   });
   camada.addEventListener("change", evento => {
+    if (evento.target.dataset.campo === "calcPoke") {
+      visao.calcPoke = evento.target.value;
+      visao.calcNivel = "";
+      redesenharCalculadora();
+      return;
+    }
+    if (evento.target.dataset.campo === "calcAfk") {
+      visao.calcAfk = evento.target.checked;
+      redesenharCalculadora();
+      return;
+    }
     if (evento.target.dataset.campo === "ordemHunt") {
       visao.ordemHunt = evento.target.value;
       renderizar(false);
@@ -2068,6 +2258,11 @@
     receitas = receitasSalvas || null;
     craftLiberadas = Array.isArray(craftSalvo) ? craftSalvo : [];
     bancoHunts = (await ler(chaves.hunts)) || { hunts: {} };
+    idInstalacao = await ler(chaves.instalacao);
+    if (!idInstalacao) {
+      idInstalacao = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()).replace(/-/g, "");
+      gravar(chaves.instalacao, idInstalacao);
+    }
     const trechoSalvo = await ler(chaves.trechoHunt);
     if (trechoSalvo && Date.now() - (trechoSalvo.inicio || 0) < 12 * 60 * 60 * 1000) trechoHunt = trechoSalvo;
     const mercadoPokesSalvo = await ler(chaves.pokesMercado);
@@ -2086,5 +2281,7 @@
     pedirAoJogo("pedirEstado");
     verificarVersao();
     carregarBancoClas();
+    carregarMapa();
+    carregarMissoesDoServidor();
   })();
 })();

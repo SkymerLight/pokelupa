@@ -240,3 +240,35 @@ main { max-width: var(--largura); margin: 0 auto; padding: 0 20px; }
 @media (max-width: 600px) {
   .explicacoes { grid-template-columns: 1fr; }
 }
+
+.rotas { display: grid; grid-template-columns: 360px 1fr; gap: 24px; align-items: start; }
+.rotas-form { position: sticky; top: 84px; }
+.seletor-modo { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.seletor-modo > span { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--texto-3); width: 100%; }
+.chip-site { height: 34px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--borda); background: rgba(255, 255, 255, .03); color: var(--texto-2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.chip-site.ativo { background: linear-gradient(180deg, #ffdd85, #dca63c); color: #1b1404; border-color: transparent; }
+.rotas-resultado { min-height: 200px; }
+.vazio-rota { padding: 30px 20px; text-align: center; color: var(--texto-3); border: 1px dashed var(--borda); border-radius: 16px; }
+.rota-resumo { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.rota-resumo div { padding: 14px; border-radius: 14px; border: 1px solid var(--borda-forte); background: rgba(231, 194, 106, .06); }
+.rota-resumo span { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--ouro); font-weight: 700; }
+.rota-resumo b { display: block; font-family: Sora, sans-serif; font-size: 19px; margin-top: 4px; }
+.rota-trechos { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; position: relative; }
+.rota-trechos li { display: grid; grid-template-columns: 90px 1fr auto; gap: 14px; align-items: center; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--borda); background: var(--painel); }
+.rota-niveis { font-family: Sora, sans-serif; font-weight: 800; color: var(--ouro-2); }
+.rota-hunt b { font-size: 15px; margin-right: 6px; }
+.rota-hunt small, .hunt-sugerida small { display: block; color: var(--texto-3); font-size: 12px; margin-top: 2px; }
+.rota-numeros { display: grid; text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--texto-2); }
+.rota-numeros span:first-child { color: var(--texto); font-weight: 700; }
+.area { display: inline-block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; padding: 1px 7px; border-radius: 6px; color: #0b1020; vertical-align: 2px; }
+.area-kanto { background: #60a5fa; } .area-outland { background: #f97316; } .area-orre { background: #eab308; } .area-nightmare { background: #a855f7; }
+.medido { display: inline-block; margin-top: 4px; font-size: 11.5px; color: #4ade80; }
+.aviso-estimativa { margin-top: 16px; font-size: 13px; color: var(--texto-3); line-height: 1.6; max-width: 900px; }
+.melhores-hunts { padding: 16px; border-radius: 18px; border: 1px solid var(--borda-forte); background: var(--painel); }
+.melhores-hunts[hidden] { display: none; }
+.melhores-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.melhores-topo h3 { margin: 0; font-size: 16px; }
+.hunt-sugerida { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; padding: 9px 4px; border-top: 1px solid var(--borda); }
+.posicao-hunt { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-weight: 800; background: rgba(231, 194, 106, .12); color: var(--ouro-2); font-size: 13px; }
+@media (max-width: 920px) { .rotas { grid-template-columns: 1fr; } .rotas-form { position: static; } .rota-resumo { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .rota-trechos li { grid-template-columns: 1fr; } .rota-numeros { text-align: left; } }
