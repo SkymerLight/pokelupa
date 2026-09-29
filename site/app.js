@@ -24,6 +24,7 @@
   let baseRotas = null;
   let medidasComunidade = new Map();
   let ultimoPokeAnalisado = null;
+  let preencherRotaDepois = false;
   let itens = [];
 
   document.querySelectorAll('[data-link="repositorio"]').forEach(a => { a.href = repositorio; });
@@ -131,7 +132,8 @@
       power: poderLido || undefined
     };
     desenharResultado(envolver(poke, especie));
-    ultimoPokeAnalisado = { especie, nivel, qualidade, ivTotal: ivTotal || undefined, stats: completos ? stats : null };
+    ultimoPokeAnalisado = { especie, nivel, qualidade, ivTotal: ivTotal || undefined, stats: completos ? stats : null, ditto, shiny: campo("shiny").checked, nomeOriginal };
+    $("#rotaDoAnalisador").hidden = false;
     desenharMelhoresHunts();
   }
 
@@ -386,6 +388,7 @@
         duvidas.add("ivTotal");
       }
       calcular();
+      if (preencherRotaDepois) usarAnalisadoNaRota();
       if (duvidas.has("ivTotal") && campo("ditto").checked) {
         mostrarLeitura("Confira o IV total (aparece no jogo como IV x/192): no Ditto ele decide em quem ele se transformou.", "pronta");
         return;
@@ -399,6 +402,8 @@
       else mostrarLeitura("Não reconheci o cartão. Tente um print maior ou preencha à mão.", "erro");
     } catch (erro) {
       mostrarLeitura(erro.message || "Algo deu errado na leitura.", "erro");
+    } finally {
+      preencherRotaDepois = false;
     }
   }
 
@@ -486,6 +491,40 @@
     return `<span class="medido" title="Média real enviada por ${medida.jogadores} jogador(es), ${formatarHoras(medida.segundos)} de dados">medido: ${F.formatarCurto(medida.xp / medida.segundos * 3600)} XP/h · ${F.formatarCurto((medida.loot + medida.capturasGold - medida.gastos) / medida.segundos * 3600)} gold/h</span>`;
   }
 
+  function htmlForma(forma, shiny) {
+    if (!forma) return "";
+    const sprite = F.urlSprite(forma.spriteId || (forma.pokeId <= 1025 ? forma.pokeId : null), shiny);
+    return `<span class="forma-ditto" title="Transforme o Ditto neste Pokémon para esta hunt">${sprite ? `<img src="${sprite}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}vira ${Cartao.esc(forma.name)}</span>`;
+  }
+
+  function ivDoAnalisado(dados) {
+    if (dados.ivTotal) return dados.ivTotal;
+    if (!dados.stats) return null;
+    const analise = F.analisarPokemon({ name: dados.especie.name, level: dados.nivel, quality: dados.qualidade, stats: dados.stats }, dados.especie);
+    return analise.ivTotalCalculado ? analise.ivTotal : null;
+  }
+
+  function usarAnalisadoNaRota() {
+    if (!ultimoPokeAnalisado) return;
+    const formularioRota = document.getElementById("formRota");
+    const { nivel, qualidade, ditto, shiny, nomeOriginal } = ultimoPokeAnalisado;
+    formularioRota.elements.especie.value = ditto ? "Ditto" : nomeOriginal;
+    formularioRota.elements.shiny.checked = !!shiny;
+    formularioRota.elements.de.value = nivel;
+    formularioRota.elements.ate.value = Math.max(nivel + 1, Math.ceil((nivel + 1) / 50) * 50);
+    const iv = ivDoAnalisado(ultimoPokeAnalisado);
+    formularioRota.elements.ivTotal.value = iv ? Math.round(iv) : "";
+    formularioRota.elements.qualidade.value = String(qualidade).replace(".", ",");
+    simularRota();
+    document.getElementById("rotas").scrollIntoView({ behavior: "smooth" });
+  }
+
+  document.getElementById("rotaDoAnalisador").addEventListener("click", usarAnalisadoNaRota);
+  document.getElementById("rotaPorPrint").addEventListener("click", () => {
+    preencherRotaDepois = true;
+    $("#arquivoPrint").click();
+  });
+
   function simularRota(evento) {
     if (evento) evento.preventDefault();
     const formulario = document.getElementById("formRota");
@@ -494,7 +533,8 @@
       saida.innerHTML = `<div class="vazio-rota">Carregando dados…</div>`;
       return;
     }
-    const especie = baseRotas.porNome.get(PokeLupaRotas.normalizar(formulario.elements.especie.value));
+    const lido = PokeLupaRotas.lerNome(baseRotas, formulario.elements.especie.value);
+    const especie = lido && lido.especie;
     const de = Math.max(1, Number(formulario.elements.de.value) || 1);
     const ate = Math.max(de + 1, Number(formulario.elements.ate.value) || de + 1);
     if (!especie) {
@@ -505,19 +545,33 @@
       saida.innerHTML = `<div class="vazio-rota">Escolha um intervalo de até 600 níveis.</div>`;
       return;
     }
-    const qualidade = Number(String(formulario.elements.qualidade.value || "1").replace(",", ".")) || 1;
-    const ivTotal = Number(formulario.elements.ivTotal.value) || 99;
+    const shiny = lido.shiny || formulario.elements.shiny.checked;
+    const qualidade = Number(String(formulario.elements.qualidade.value || "").replace(",", ".")) || (shiny ? 1.9 : 1);
+    const ivTotal = Number(formulario.elements.ivTotal.value) || (shiny ? 176 : 99);
     const modo = lerModo("modo");
     const areas = lerAreas();
-    const rota = PokeLupaRotas.planejarRota(baseRotas, especie, de, ate, { modo, qualidade, ivTotal, areas });
+    const opcoes = { modo, qualidade, ivTotal, areas, ditto: lido.ditto, shiny };
+    const nomeMostrado = `${shiny ? "Shiny " : ""}${especie.name}`;
+    const rota = PokeLupaRotas.planejarRota(baseRotas, especie, de, ate, opcoes);
     if (!rota.trechos.length) {
-      saida.innerHTML = `<div class="vazio-rota">Nenhuma hunt dessas regiões serve para ${Cartao.esc(especie.name)} no Nv ${de}.</div>`;
+      saida.innerHTML = `<div class="vazio-rota">Nenhuma hunt dessas regiões serve para ${Cartao.esc(nomeMostrado)} no Nv ${de}.</div>`;
       return;
+    }
+    let topDitto = "";
+    if (lido.ditto) {
+      const melhores = PokeLupaRotas.rankear(baseRotas, especie, de, opcoes).slice(0, 5);
+      topDitto = `<div class="top-ditto"><h3>5 melhores hunts no Nv ${de} e em quem transformar</h3>${melhores.map((r, i) => `
+        <div class="hunt-sugerida">
+          <span class="posicao-hunt">${i + 1}</span>
+          <div><b>${Cartao.esc(r.hunt.nome)}</b> <span class="area area-${r.hunt.area}">${r.hunt.area}</span> ${htmlForma(r.forma, shiny)}<small>hunt Nv ${r.hunt.nivel} · ${Math.round(r.killsHora)} kills/h</small>${htmlMedido(r.hunt.slug)}</div>
+          <div class="rota-numeros"><span>${F.formatarCurto(r.xpHora)} XP/h</span><span>${F.formatarCurto(r.goldHora)} gold/h</span></div>
+        </div>`).join("")}</div>`;
     }
     const nomesModo = { xp: "mais XP", lucro: "mais lucro", balanceado: "balanceada" };
     saida.innerHTML = `
+      ${topDitto}
       <div class="rota-resumo">
-        <div><span>Rota ${nomesModo[modo]}</span><b>${Cartao.esc(especie.name)} Nv ${de} → ${rota.travouEm || ate}</b></div>
+        <div><span>Rota ${nomesModo[modo]}</span><b>${Cartao.esc(nomeMostrado)} Nv ${de} → ${rota.travouEm || ate}</b></div>
         <div><span>Tempo total</span><b>${formatarHoras(rota.totalSegundos)}</b></div>
         <div><span>Gold no caminho</span><b>${F.formatarCurto(rota.totalGold)}</b></div>
       </div>
@@ -528,6 +582,7 @@
             <div class="rota-hunt">
               <b>${Cartao.esc(t.hunt.nome)}</b>
               <span class="area area-${t.hunt.area}">${t.hunt.area}</span>
+              ${htmlForma(t.forma, shiny)}
               <small>hunt Nv ${t.hunt.nivel} · ${formatarHoras(t.segundos)}</small>
               ${htmlMedido(t.hunt.slug)}
             </div>
@@ -545,14 +600,17 @@
       caixa.hidden = true;
       return;
     }
-    const { especie, nivel, qualidade, ivTotal, stats } = ultimoPokeAnalisado;
-    const especieRotas = baseRotas.porNome.get(PokeLupaRotas.normalizar(especie.name)) || especie;
-    const ranking = PokeLupaRotas.rankear(baseRotas, especieRotas, nivel, { modo: lerModo("modoAnalise"), qualidade, ivTotal, stats, nivelDosStats: nivel }).slice(0, 10);
+    const { especie, nivel, qualidade, ivTotal, stats, ditto, shiny } = ultimoPokeAnalisado;
+    const especieRotas = baseRotas.porNome.get(PokeLupaRotas.normalizar(ditto ? "Ditto" : especie.name)) || especie;
+    const opcoes = ditto
+      ? { modo: lerModo("modoAnalise"), qualidade, ivTotal: ivDoAnalisado(ultimoPokeAnalisado) || (shiny ? 176 : 99), ditto: true, shiny }
+      : { modo: lerModo("modoAnalise"), qualidade, ivTotal, stats, nivelDosStats: nivel };
+    const ranking = PokeLupaRotas.rankear(baseRotas, especieRotas, nivel, opcoes).slice(0, 10);
     caixa.hidden = false;
     lista.innerHTML = ranking.length ? ranking.map((r, i) => `
       <div class="hunt-sugerida">
         <span class="posicao-hunt">${i + 1}</span>
-        <div><b>${Cartao.esc(r.hunt.nome)}</b> <span class="area area-${r.hunt.area}">${r.hunt.area}</span><small>hunt Nv ${r.hunt.nivel} · ${Math.round(r.killsHora)} kills/h</small>${htmlMedido(r.hunt.slug)}</div>
+        <div><b>${Cartao.esc(r.hunt.nome)}</b> <span class="area area-${r.hunt.area}">${r.hunt.area}</span>${htmlForma(r.forma, shiny)}<small>hunt Nv ${r.hunt.nivel} · ${Math.round(r.killsHora)} kills/h</small>${htmlMedido(r.hunt.slug)}</div>
         <div class="rota-numeros"><span>${F.formatarCurto(r.xpHora)} XP/h</span><span>${F.formatarCurto(r.goldHora)} gold/h</span></div>
       </div>`).join("") : `<div class="vazio-rota">Nenhuma hunt segura para ele nesse nível.</div>`;
   }
@@ -597,7 +655,7 @@
         if (base && base.pokeId <= 1025) especie.spriteId = base.pokeId;
       }
     }
-    $("#listaEspecies").innerHTML = especies.map(e => `<option value="${Cartao.esc(e.name)}">`).join("");
+    $("#listaEspecies").innerHTML = `<option value="Shiny Ditto">` + especies.map(e => `<option value="${Cartao.esc(e.name)}">`).join("");
     const categorias = [...new Set(itens.map(i => i.category))];
     $("#categoriaLoot").innerHTML = `<option value="todas">Todas as categorias</option>` +
       categorias.map(c => `<option value="${c}">${nomesCategorias[c] || c}</option>`).join("");

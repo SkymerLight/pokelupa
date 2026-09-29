@@ -248,6 +248,12 @@ main { max-width: var(--largura); margin: 0 auto; padding: 0 20px; }
 .chip-site { height: 34px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--borda); background: rgba(255, 255, 255, .03); color: var(--texto-2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .chip-site.ativo { background: linear-gradient(180deg, #ffdd85, #dca63c); color: #1b1404; border-color: transparent; }
 .rotas-resultado { min-height: 200px; }
+.linha-print { display: flex; gap: 6px; flex-wrap: wrap; }
+.linha-print [hidden] { display: none; }
+.forma-ditto { display: inline-flex; align-items: center; gap: 4px; margin-left: 2px; font-size: 12px; font-weight: 700; color: #f0abfc; }
+.forma-ditto img { width: 28px; height: 28px; image-rendering: pixelated; margin: -6px 0; }
+.top-ditto { margin-bottom: 14px; padding: 14px 16px; border-radius: 16px; border: 1px solid rgba(240, 171, 252, .35); background: rgba(240, 171, 252, .05); }
+.top-ditto h3 { margin: 0 0 6px; font-size: 15px; }
 .vazio-rota { padding: 30px 20px; text-align: center; color: var(--texto-3); border: 1px dashed var(--borda); border-radius: 16px; }
 .rota-resumo { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
 .rota-resumo div { padding: 14px; border-radius: 14px; border: 1px solid var(--borda-forte); background: rgba(231, 194, 106, .06); }

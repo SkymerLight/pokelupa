@@ -144,6 +144,11 @@
           <label>Até o nível<input type="number" name="ate" min="2" value="100"></label>
           <label>IV total<input type="number" name="ivTotal" min="6" max="192" placeholder="99"></label>
           <label>Qualidade<input type="text" inputmode="decimal" name="qualidade" placeholder="1,00"></label>
+          <label class="caixa" title="Shinies podem ter qualidade acima de 1,80 e IV total acima de 159"><input type="checkbox" name="shiny"> É shiny</label>
+          <div class="largo linha-print">
+            <button type="button" class="botao vidro pequeno" id="rotaPorPrint">📷 Preencher com um print</button>
+            <button type="button" class="botao vidro pequeno" id="rotaDoAnalisador" hidden>Usar o do analisador</button>
+          </div>
           <div class="largo seletor-modo" data-grupo="modo">
             <span>Prioridade</span>
             <button type="button" class="chip-site ativo" data-valor="xp">⚡ XP</button>
@@ -164,7 +169,7 @@
           <div class="vazio-rota">Preencha ao lado e clique em <b>Simular rota</b>.</div>
         </div>
       </div>
-      <p class="aviso-estimativa">Os números são uma <b>estimativa</b>: o simulador usa os atributos, os golpes, a efetividade de tipos, o XP e a tabela de drops de cada Pokémon do jogo, calibrados com hunts reais medidas pela extensão. Não considera boosts, VIP, eventos, itens segurados nem golpes em área. Quando a comunidade já mediu uma hunt, o valor real aparece ao lado.</p>
+      <p class="aviso-estimativa">Os números são uma <b>estimativa</b>: o simulador usa os atributos, os golpes, a efetividade de tipos, o XP e a tabela de drops de cada Pokémon do jogo, calibrados com hunts reais medidas pela extensão. Para o Ditto, ele testa todas as formas que ele pode copiar (o Shiny Ditto só copia espécies que têm forma shiny) e escolhe a mais rápida em cada hunt. Não considera boosts, VIP, eventos, itens segurados nem golpes em área. Quando a comunidade já mediu uma hunt, o valor real aparece ao lado.</p>
     </section>
 
     <section id="extensao" class="bloco">
